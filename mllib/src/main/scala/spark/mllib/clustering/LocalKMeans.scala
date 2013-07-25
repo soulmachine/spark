@@ -19,6 +19,8 @@ package spark.mllib.clustering
 
 import scala.util.Random
 
+import spark.mllib.math.vector.{Vector, DenseVector, SparseVector}
+
 import org.jblas.{DoubleMatrix, SimpleBlas}
 
 /**
@@ -32,15 +34,15 @@ private[mllib] object LocalKMeans {
    */
   def kMeansPlusPlus(
       seed: Int,
-      points: Array[Array[Double]],
+      points: Array[Vector],
       weights: Array[Double],
       k: Int,
       maxIterations: Int)
-    : Array[Array[Double]] =
+    : Array[Vector] =
   {
     val rand = new Random(seed)
-    val dimensions = points(0).length
-    val centers = new Array[Array[Double]](k)
+    val dimensions = points(0).dimension
+    val centers = new Array[Vector](k)
 
     // Initialize centers by sampling using the k-means++ procedure
     centers(0) = pickWeighted(rand, points, weights)
@@ -70,7 +72,7 @@ private[mllib] object LocalKMeans {
       val counts = Array.fill(k)(0.0)
       for ((p, i) <- points.zipWithIndex) {
         val index = KMeans.findClosest(centers, p)._1
-        SimpleBlas.axpy(weights(i), new DoubleMatrix(p), sums(index))
+        SimpleBlas.axpy(weights(i), new DoubleMatrix(p.toArray), sums(index))
         counts(index) += weights(i)
         if (index != oldClosest(i)) {
           moved = true
@@ -83,7 +85,7 @@ private[mllib] object LocalKMeans {
           // Assign center to a random point
           centers(i) = points(rand.nextInt(points.length))
         } else {
-          centers(i) = sums(i).divi(counts(i)).data
+          centers(i) = points(0).like(sums(i).toArray()) / counts(i)
         }
       }
       iteration += 1

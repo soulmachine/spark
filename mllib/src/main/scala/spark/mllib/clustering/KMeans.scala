@@ -24,6 +24,7 @@ import spark.{SparkContext, RDD}
 import spark.SparkContext._
 import spark.Logging
 import spark.mllib.util.MLUtils
+import spark.mllib.math.vector.{Vector, DenseVector}
 
 import org.jblas.DoubleMatrix
 
@@ -45,7 +46,7 @@ class KMeans private (
     var epsilon: Double)
   extends Serializable with Logging
 {
-  private type ClusterCenters = Array[Array[Double]]
+  private type ClusterCenters = Array[Vector]
 
   def this() = this(2, 20, 1, KMeans.K_MEANS_PARALLEL, 5, 1e-4)
 
@@ -112,7 +113,7 @@ class KMeans private (
    * Train a K-means model on the given set of points; `data` should be cached for high
    * performance, because this is an iterative algorithm.
    */
-  def train(data: RDD[Array[Double]]): KMeansModel = {
+  def train(data: RDD[Vector]): KMeansModel = {
     // TODO: check whether data is persistent; this needs RDD.storageLevel to be publicly readable
 
     val sc = data.sparkContext
@@ -131,9 +132,9 @@ class KMeans private (
 
     // Execute iterations of Lloyd's algorithm until all runs have converged
     while (iteration < maxIterations && !activeRuns.isEmpty) {
-      type WeightedPoint = (DoubleMatrix, Long)
+      type WeightedPoint = (Vector, Long)
       def mergeContribs(p1: WeightedPoint, p2: WeightedPoint): WeightedPoint = {
-        (p1._1.addi(p2._1), p1._2 + p2._2)
+        (p1._1 += p2._1, p1._2 + p2._2)
       }
 
       val activeCenters = activeRuns.map(r => centers(r)).toArray
@@ -143,18 +144,18 @@ class KMeans private (
       val totalContribs = data.mapPartitions { points =>
         val runs = activeCenters.length
         val k = activeCenters(0).length
-        val dims = activeCenters(0)(0).length
+        val dims = activeCenters(0)(0).dimension
 
-        val sums = Array.fill(runs, k)(new DoubleMatrix(dims))
+        val sums = Array.fill(runs, k)(activeCenters(0)(0).like)
         val counts = Array.fill(runs, k)(0L)
 
         for (point <- points; (centers, runIndex) <- activeCenters.zipWithIndex) {
           val (bestCenter, cost) = KMeans.findClosest(centers, point)
           costAccums(runIndex) += cost
-          sums(runIndex)(bestCenter).addi(new DoubleMatrix(point))
+          sums(runIndex)(bestCenter) += point
           counts(runIndex)(bestCenter) += 1
         }
-
+        
         val contribs = for (i <- 0 until runs; j <- 0 until k) yield {
           ((i, j), (sums(i)(j), counts(i)(j)))
         }
@@ -167,8 +168,8 @@ class KMeans private (
         for (j <- 0 until k) {
           val (sum, count) = totalContribs((i, j))
           if (count != 0) {
-            val newCenter = sum.divi(count).data
-            if (MLUtils.squaredDistance(newCenter, centers(run)(j)) > epsilon * epsilon) {
+            val newCenter = sum / count
+            if (newCenter.getDistanceSquared(centers(run)(j)) > epsilon * epsilon) {
               changed = true
             }
             centers(run)(j) = newCenter
@@ -192,7 +193,7 @@ class KMeans private (
   /**
    * Initialize `runs` sets of cluster centers at random.
    */
-  private def initRandom(data: RDD[Array[Double]]): Array[ClusterCenters] = {
+  private def initRandom(data: RDD[Vector]): Array[ClusterCenters] = {
     // Sample all the cluster centers in one pass to avoid repeated scans
     val sample = data.takeSample(true, runs * k, new Random().nextInt())
     Array.tabulate(runs)(r => sample.slice(r * k, (r + 1) * k))
@@ -207,7 +208,7 @@ class KMeans private (
    *
    * The original paper can be found at http://theory.stanford.edu/~sergei/papers/vldb12-kmpar.pdf.
    */
-  private def initKMeansParallel(data: RDD[Array[Double]]): Array[ClusterCenters] = {
+  private def initKMeansParallel(data: RDD[Vector]): Array[ClusterCenters] = {
     // Initialize each run's center to a random point
     val seed = new Random().nextInt()
     val sample = data.takeSample(true, runs, seed)
@@ -260,7 +261,7 @@ object KMeans {
   val K_MEANS_PARALLEL = "k-means||"
 
   def train(
-      data: RDD[Array[Double]],
+      data: RDD[Vector],
       k: Int,
       maxIterations: Int,
       runs: Int,
@@ -274,24 +275,24 @@ object KMeans {
                 .train(data)
   }
 
-  def train(data: RDD[Array[Double]], k: Int, maxIterations: Int, runs: Int): KMeansModel = {
+  def train(data: RDD[Vector], k: Int, maxIterations: Int, runs: Int): KMeansModel = {
     train(data, k, maxIterations, runs, K_MEANS_PARALLEL)
   }
 
-  def train(data: RDD[Array[Double]], k: Int, maxIterations: Int): KMeansModel = {
+  def train(data: RDD[Vector], k: Int, maxIterations: Int): KMeansModel = {
     train(data, k, maxIterations, 1, K_MEANS_PARALLEL)
   }
 
   /**
    * Return the index of the closest point in `centers` to `point`, as well as its distance.
    */
-  private[mllib] def findClosest(centers: Array[Array[Double]], point: Array[Double])
+  private[mllib] def findClosest(centers: Array[Vector], point: Vector)
     : (Int, Double) =
   {
     var bestDistance = Double.PositiveInfinity
     var bestIndex = 0
     for (i <- 0 until centers.length) {
-      val distance = MLUtils.squaredDistance(point, centers(i))
+      val distance = point.getDistanceSquared(centers(i))
       if (distance < bestDistance) {
         bestDistance = distance
         bestIndex = i
@@ -303,10 +304,10 @@ object KMeans {
   /**
    * Return the K-means cost of a given point against the given cluster centers.
    */
-  private[mllib] def pointCost(centers: Array[Array[Double]], point: Array[Double]): Double = {
+  private[mllib] def pointCost(centers: Array[Vector], point: Vector): Double = {
     var bestDistance = Double.PositiveInfinity
     for (i <- 0 until centers.length) {
-      val distance = MLUtils.squaredDistance(point, centers(i))
+      val distance = point.getDistanceSquared(centers(i))
       if (distance < bestDistance) {
         bestDistance = distance
       }
@@ -321,12 +322,12 @@ object KMeans {
     }
     val (master, inputFile, k, iters) = (args(0), args(1), args(2).toInt, args(3).toInt)
     val sc = new SparkContext(master, "KMeans")
-    val data = sc.textFile(inputFile).map(line => line.split(' ').map(_.toDouble))
+    val data = sc.textFile(inputFile).map(line => new DenseVector(line.split(' ').map(_.toDouble)).asInstanceOf[Vector])
     val model = KMeans.train(data, k, iters)
     val cost = model.computeCost(data)
     println("Cluster centers:")
     for (c <- model.clusterCenters) {
-      println("  " + c.mkString(" "))
+      println("  " + c)
     }
     println("Cost: " + cost)
     System.exit(0)

@@ -22,8 +22,10 @@ import scala.util.Random
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FunSuite
 
-import spark.SparkContext
+import spark.{SparkContext, RDD}
 import spark.SparkContext._
+
+import spark.mllib.math.vector.{Vector, DenseVector, SparseVector}
 
 import org.jblas._
 
@@ -40,26 +42,24 @@ class KMeansSuite extends FunSuite with BeforeAndAfterAll {
 
   import KMeans.{RANDOM, K_MEANS_PARALLEL}
 
-  def prettyPrint(point: Array[Double]): String = point.mkString("(", ", ", ")")
+  def prettyPrint(point: Vector): String = point.toString()
 
-  def prettyPrint(points: Array[Array[Double]]): String = {
+  def prettyPrint(points: Array[Vector]): String = {
     points.map(prettyPrint).mkString("(", "; ", ")")
   }
 
   // L1 distance between two points
-  def distance1(v1: Array[Double], v2: Array[Double]): Double = {
-    v1.zip(v2).map{ case (a, b) => math.abs(a-b) }.max
-  }
+  def distance1(v1: Vector, v2: Vector): Double = (v1 - v2).norm(1)
 
   // Assert that two vectors are equal within tolerance EPSILON
-  def assertEqual(v1: Array[Double], v2: Array[Double]) {
+  def assertEqual(v1: Vector, v2: Vector) {
     def errorMessage = prettyPrint(v1) + " did not equal " + prettyPrint(v2)
-    assert(v1.length == v2.length, errorMessage)
-    assert(distance1(v1, v2) <= EPSILON, errorMessage)
+    assert(v1.dimension == v2.dimension, errorMessage)
+    assert(v1.getDistanceSquared(v2) <= EPSILON, errorMessage)
   }
 
   // Assert that two sets of points are equal, within EPSILON tolerance
-  def assertSetsEqual(set1: Array[Array[Double]], set2: Array[Array[Double]]) {
+  def assertSetsEqual(set1: Array[Vector], set2: Array[Vector]) {
     def errorMessage = prettyPrint(set1) + " did not equal " + prettyPrint(set2)
     assert(set1.length == set2.length, errorMessage)
     for (v <- set1) {
@@ -78,79 +78,79 @@ class KMeansSuite extends FunSuite with BeforeAndAfterAll {
 
   test("single cluster") {
     val data = sc.parallelize(Array(
-      Array(1.0, 2.0, 6.0),
-      Array(1.0, 3.0, 0.0),
-      Array(1.0, 4.0, 6.0)
-    ))
+      DenseVector(1.0, 2.0, 6.0),
+      DenseVector(1.0, 3.0, 0.0),
+      DenseVector(1.0, 4.0, 6.0)
+    )).asInstanceOf[RDD[Vector]]
 
     // No matter how many runs or iterations we use, we should get one cluster,
     // centered at the mean of the points
 
     var model = KMeans.train(data, k=1, maxIterations=1)
-    assertSetsEqual(model.clusterCenters, Array(Array(1.0, 3.0, 4.0)))
+    assertSetsEqual(model.clusterCenters, Array(DenseVector(1.0, 3.0, 4.0)))
 
     model = KMeans.train(data, k=1, maxIterations=2)
-    assertSetsEqual(model.clusterCenters, Array(Array(1.0, 3.0, 4.0)))
+    assertSetsEqual(model.clusterCenters, Array(DenseVector(1.0, 3.0, 4.0)))
 
     model = KMeans.train(data, k=1, maxIterations=5)
-    assertSetsEqual(model.clusterCenters, Array(Array(1.0, 3.0, 4.0)))
+    assertSetsEqual(model.clusterCenters, Array(DenseVector(1.0, 3.0, 4.0)))
 
     model = KMeans.train(data, k=1, maxIterations=1, runs=5)
-    assertSetsEqual(model.clusterCenters, Array(Array(1.0, 3.0, 4.0)))
+    assertSetsEqual(model.clusterCenters, Array(DenseVector(1.0, 3.0, 4.0)))
 
     model = KMeans.train(data, k=1, maxIterations=1, runs=5)
-    assertSetsEqual(model.clusterCenters, Array(Array(1.0, 3.0, 4.0)))
+    assertSetsEqual(model.clusterCenters, Array(DenseVector(1.0, 3.0, 4.0)))
 
     model = KMeans.train(data, k=1, maxIterations=1, runs=1, initializationMode=RANDOM)
-    assertSetsEqual(model.clusterCenters, Array(Array(1.0, 3.0, 4.0)))
+    assertSetsEqual(model.clusterCenters, Array(DenseVector(1.0, 3.0, 4.0)))
 
     model = KMeans.train(
       data, k=1, maxIterations=1, runs=1, initializationMode=K_MEANS_PARALLEL)
-    assertSetsEqual(model.clusterCenters, Array(Array(1.0, 3.0, 4.0)))
+    assertSetsEqual(model.clusterCenters, Array(DenseVector(1.0, 3.0, 4.0)))
   }
 
   test("single cluster with big dataset") {
     val smallData = Array(
-      Array(1.0, 2.0, 6.0),
-      Array(1.0, 3.0, 0.0),
-      Array(1.0, 4.0, 6.0)
+      DenseVector(1.0, 2.0, 6.0),
+      DenseVector(1.0, 3.0, 0.0),
+      DenseVector(1.0, 4.0, 6.0)
     )
-    val data = sc.parallelize((1 to 100).flatMap(_ => smallData), 4)
+    val data = sc.parallelize((1 to 100).flatMap(_ => smallData), 4).asInstanceOf[RDD[Vector]]
 
     // No matter how many runs or iterations we use, we should get one cluster,
     // centered at the mean of the points
 
     var model = KMeans.train(data, k=1, maxIterations=1)
-    assertSetsEqual(model.clusterCenters, Array(Array(1.0, 3.0, 4.0)))
+    assertSetsEqual(model.clusterCenters, Array(DenseVector(1.0, 3.0, 4.0)))
 
     model = KMeans.train(data, k=1, maxIterations=2)
-    assertSetsEqual(model.clusterCenters, Array(Array(1.0, 3.0, 4.0)))
+    assertSetsEqual(model.clusterCenters, Array(DenseVector(1.0, 3.0, 4.0)))
 
     model = KMeans.train(data, k=1, maxIterations=5)
-    assertSetsEqual(model.clusterCenters, Array(Array(1.0, 3.0, 4.0)))
+    assertSetsEqual(model.clusterCenters, Array(DenseVector(1.0, 3.0, 4.0)))
 
     model = KMeans.train(data, k=1, maxIterations=1, runs=5)
-    assertSetsEqual(model.clusterCenters, Array(Array(1.0, 3.0, 4.0)))
+    assertSetsEqual(model.clusterCenters, Array(DenseVector(1.0, 3.0, 4.0)))
 
     model = KMeans.train(data, k=1, maxIterations=1, runs=5)
-    assertSetsEqual(model.clusterCenters, Array(Array(1.0, 3.0, 4.0)))
+    assertSetsEqual(model.clusterCenters, Array(DenseVector(1.0, 3.0, 4.0)))
 
     model = KMeans.train(data, k=1, maxIterations=1, runs=1, initializationMode=RANDOM)
-    assertSetsEqual(model.clusterCenters, Array(Array(1.0, 3.0, 4.0)))
+    assertSetsEqual(model.clusterCenters, Array(DenseVector(1.0, 3.0, 4.0)))
 
     model = KMeans.train(data, k=1, maxIterations=1, runs=1, initializationMode=K_MEANS_PARALLEL)
-    assertSetsEqual(model.clusterCenters, Array(Array(1.0, 3.0, 4.0)))
+    assertSetsEqual(model.clusterCenters, Array(DenseVector(1.0, 3.0, 4.0)))
   }
 
   test("k-means|| initialization") {
     val points = Array(
-      Array(1.0, 2.0, 6.0),
-      Array(1.0, 3.0, 0.0),
-      Array(1.0, 4.0, 6.0),
-      Array(1.0, 0.0, 1.0),
-      Array(1.0, 1.0, 1.0)
-    )
-    val rdd = sc.parallelize(points)
+      DenseVector(1.0, 2.0, 6.0),
+      DenseVector(1.0, 3.0, 0.0),
+      DenseVector(1.0, 4.0, 6.0),
+      DenseVector(1.0, 0.0, 1.0),
+      DenseVector(1.0, 1.0, 1.0)
+    ).asInstanceOf[Array[Vector]]
+    val rdd = sc.parallelize(points).asInstanceOf[RDD[Vector]]
 
     // K-means|| initialization should place all clusters into distinct centers because
     // it will make at least five passes, and it will give non-zero probability to each
