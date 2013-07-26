@@ -19,6 +19,7 @@ package spark.mllib.optimization
 
 import spark.{Logging, RDD, SparkContext}
 import spark.SparkContext._
+import spark.mllib.math.vector.Vector
 
 import org.jblas.DoubleMatrix
 
@@ -44,13 +45,13 @@ object GradientDescent {
    *         loss computed for every iteration.
    */
   def runMiniBatchSGD(
-    data: RDD[(Double, Array[Double])],
+    data: RDD[(Double, Vector)],
     gradient: Gradient,
     updater: Updater,
     stepSize: Double,
     numIters: Int,
-    initialWeights: Array[Double],
-    miniBatchFraction: Double=1.0) : (Array[Double], Array[Double]) = {
+    initialWeights: Vector,
+    miniBatchFraction: Double=1.0) : (Vector, Array[Double]) = {
 
     val stochasticLossHistory = new ArrayBuffer[Double](numIters)
 
@@ -58,23 +59,22 @@ object GradientDescent {
     val miniBatchSize = nexamples * miniBatchFraction
 
     // Initialize weights as a column vector
-    var weights = new DoubleMatrix(initialWeights.length, 1, initialWeights:_*)
+    var weights = initialWeights.deepClone()
     var reg_val = 0.0
 
     for (i <- 1 to numIters) {
       val (gradientSum, lossSum) = data.sample(false, miniBatchFraction, 42+i).map {
         case (y, features) =>
-          val featuresRow = new DoubleMatrix(features.length, 1, features:_*)
-          val (grad, loss) = gradient.compute(featuresRow, y, weights)
+          val (grad, loss) = gradient.compute(features, y, weights)
           (grad, loss)
-      }.reduce((a, b) => (a._1.addi(b._1), a._2 + b._2))
+      }.reduce((a, b) => (a._1 += b._1, a._2 + b._2))
 
       stochasticLossHistory.append(lossSum / miniBatchSize + reg_val)
-      val update = updater.compute(weights, gradientSum.div(miniBatchSize), stepSize, i)
+      val update = updater.compute(weights, gradientSum / miniBatchSize, stepSize, i)
       weights = update._1
       reg_val = update._2
     }
 
-    (weights.toArray, stochasticLossHistory.toArray)
+    (weights, stochasticLossHistory.toArray)
   }
 }

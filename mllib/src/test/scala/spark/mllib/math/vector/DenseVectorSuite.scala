@@ -60,8 +60,11 @@ class DenseVectorSuite extends FunSuite {
   
   test("divide") {
     val v1 = DenseVector(1.0, 2.0, 3.0)
+    val v2 = DenseVector(2.0, 1.0, 6.0)
     
     assert(v1 / 0.5 == DenseVector(2.0, 4.0, 6.0))
+    
+    assert(v1 / v2 == DenseVector(0.5, 2.0, 0.5))
   }
   
   test("dot") {

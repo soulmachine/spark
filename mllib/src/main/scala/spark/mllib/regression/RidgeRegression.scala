@@ -19,6 +19,7 @@ package spark.mllib.regression
 
 import spark.{Logging, RDD, SparkContext}
 import spark.mllib.util.MLUtils
+import spark.mllib.math.vector.{Vector}
 
 import org.jblas.DoubleMatrix
 import org.jblas.Solve
@@ -30,23 +31,21 @@ import scala.collection.mutable
  * Ridge Regression from Joseph Gonzalez's implementation in MLBase
  */
 class RidgeRegressionModel(
-    val weights: DoubleMatrix,
+    val weights: Vector,
     val intercept: Double,
     val lambdaOpt: Double,
-    val lambdas: Seq[(Double, Double, DoubleMatrix)])
+    val lambdas: Seq[(Double, Double, Vector)])
   extends RegressionModel {
 
-  override def predict(testData: RDD[Array[Double]]): RDD[Double] = {
+  override def predict(testData: RDD[Vector]): RDD[Double] = {
     // A small optimization to avoid serializing the entire model.
     val localIntercept = this.intercept
     val localWeights = this.weights
-    testData.map { x =>
-      (new DoubleMatrix(1, x.length, x:_*).mmul(localWeights)).get(0) + localIntercept
-    }
+    testData.map { x => x * localWeights + localIntercept }
   }
 
-  override def predict(testData: Array[Double]): Double = {
-    (new DoubleMatrix(1, testData.length, testData:_*).mmul(this.weights)).get(0) + this.intercept
+  override def predict(testData: Vector): Double = {
+    testData * this.weights + this.intercept
   }
 }
 
@@ -71,16 +70,20 @@ class RidgeRegression private (var lambdaLow: Double, var lambdaHigh: Double)
     this
   }
 
-  def train(input: RDD[(Double, Array[Double])]): RidgeRegressionModel = {
-    val nfeatures: Int = input.take(1)(0)._2.length
+  def train(input: RDD[(Double, Vector)]): RidgeRegressionModel = {
+    val oneSample = input.take(1)(0)._2
+    val nfeatures: Int = oneSample.dimension
     val nexamples: Long = input.count()
 
     val (yMean, xColMean, xColSd) = MLUtils.computeStats(input, nfeatures, nexamples)
-
+    
     val data = input.map { case(y, features) =>
       val yNormalized = y - yMean
-      val featuresMat = new DoubleMatrix(nfeatures, 1, features:_*)
-      val featuresNormalized = featuresMat.sub(xColMean).divi(xColSd)
+      val xColMeanV = features.like(xColMean.toArray())
+      val xColSdV = features.like(xColSd.toArray())
+        
+      val featuresMat = features.deepClone
+      val featuresNormalized = (featuresMat - xColMeanV) / xColSdV
       (yNormalized, featuresNormalized.toArray)
     }
 
@@ -147,14 +150,17 @@ class RidgeRegression private (var lambdaLow: Double, var lambdaHigh: Double)
 
     // Actually compute the best lambda
     val lambdas = binSearch(lambdaLow, lambdaHigh).sortBy(_._1)
+    val lambdasV = lambdas.map {
+      case (low, high, matrix) => (low, high, oneSample.like(matrix.toArray()))
+    }
 
     // Find the best parameter set by taking the lowest cverror.
     val (lambdaOpt, cverror, weights) = lambdas.reduce((a, b) => if (a._2 < b._2) a else b)
 
     // Return the model which contains the solution
-    val weightsScaled = weights.div(xColSd)
+    val weightsScaled = oneSample.like(weights.div(xColSd).toArray())
     val intercept = yMean - (weights.transpose().mmul(xColMean.div(xColSd)).get(0))
-    val model = new RidgeRegressionModel(weightsScaled, intercept, lambdaOpt, lambdas)
+    val model = new RidgeRegressionModel(weightsScaled, intercept, lambdaOpt, lambdasV)
 
     logInfo("RidgeRegression: optimal lambda " + model.lambdaOpt)
     logInfo("RidgeRegression: optimal weights " + model.weights)
@@ -183,7 +189,7 @@ object RidgeRegression {
    * @param lambdaHigh upper bound used in binary search for lambda
    */
   def train(
-      input: RDD[(Double, Array[Double])],
+      input: RDD[(Double, Vector)],
       lambdaLow: Double,
       lambdaHigh: Double)
     : RidgeRegressionModel =
@@ -199,7 +205,7 @@ object RidgeRegression {
    *
    * @param input RDD of (response, array of features) pairs.
    */
-  def train(input: RDD[(Double, Array[Double])]) : RidgeRegressionModel = {
+  def train(input: RDD[(Double, Vector)]) : RidgeRegressionModel = {
     train(input, 0.0, 100.0)
   }
 

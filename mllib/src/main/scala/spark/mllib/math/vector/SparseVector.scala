@@ -38,7 +38,7 @@ class SparseVector(dimension: Int) extends AbstractVector(dimension) {
   
   def this(that: DenseVector) = this(that.toArray)
 
-  override def clone(): SparseVector = new SparseVector(this)
+  override def deepClone(): SparseVector = new SparseVector(this)
   
   def apply(i: Int): Double = values.getQuick(i)
   
@@ -62,7 +62,7 @@ class SparseVector(dimension: Int) extends AbstractVector(dimension) {
   }
   
   def + (x: Double): Vector = {
-    val result = this.clone
+    val result = this.deepClone
     if (x != 0.0) {
       result.assign(Functions.plus(x))
     }
@@ -87,12 +87,12 @@ class SparseVector(dimension: Int) extends AbstractVector(dimension) {
     if(this.dimension != that.dimension) throw new DimensionException(dimension, that.dimension)
     
     val thatV = SparseVector.getOrConvert(that)
-    val result = this.clone
+    val result = this.deepClone
     result.assign(thatV, Functions.minus)
   }
   
   def - (x: Double): Vector = {
-    val result = this.clone
+    val result = this.deepClone
     if (x != 0.0) {
       result.assign(Functions.minus(x))
     }
@@ -121,7 +121,7 @@ class SparseVector(dimension: Int) extends AbstractVector(dimension) {
   }
 
   def *(x: Double): Vector = {
-    val result = this.clone
+    val result = this.deepClone
     result.assign(Functions.mult(x))
     result
   }
@@ -132,13 +132,26 @@ class SparseVector(dimension: Int) extends AbstractVector(dimension) {
   }
   
   def /(x: Double): Vector = {
-    val result = this.clone
+    val result = this.deepClone
     result.assign(Functions.div(x))
     result
   }
   
   def /=(x: Double): Vector = {
     this.assign(Functions.div(x))
+    this
+  }
+  
+  def / (that: Vector): Vector = {
+    val result = this.deepClone
+    val thatV = SparseVector.getOrConvert(that)
+    result.assign(thatV, Functions.div)
+    result
+  }
+  /**  Elementwise divide(in place). */
+  def /= (that: Vector): Vector = {
+    val thatV = SparseVector.getOrConvert(that)
+    this.assign(thatV, Functions.div)
     this
   }
   
@@ -206,7 +219,7 @@ class SparseVector(dimension: Int) extends AbstractVector(dimension) {
     if (power.isInfinite() || power <= 1.0) {
       throw new IllegalArgumentException("Power must be > 1 and < infinity");
     } else {
-      val result = this.clone()
+      val result = this.deepClone()
       result.assign(Functions.chain(Functions.div(norm), Functions.chain(Functions.lg(power), Functions.plus(1.0))))
       result
     }

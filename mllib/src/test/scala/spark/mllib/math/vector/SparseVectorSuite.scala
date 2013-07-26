@@ -28,8 +28,6 @@ class SparseVectorSuite extends FunSuite {
     
     assert(v1 + v2 == DenseVector(1.0, 4.0, 3.0))
     assert(v1 + v2 != DenseVector(1.0, 3.99, 3.0))
-    println(v1)
-    println(v1 + v3)
     assert(v1 + v3 == v1)
     assert(v1 + v4 == v3)
     

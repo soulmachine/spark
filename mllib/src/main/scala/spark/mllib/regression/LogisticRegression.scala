@@ -20,6 +20,7 @@ package spark.mllib.regression
 import spark.{Logging, RDD, SparkContext}
 import spark.mllib.optimization._
 import spark.mllib.util.MLUtils
+import spark.mllib.math.vector.Vector
 
 import org.jblas.DoubleMatrix
 
@@ -28,38 +29,34 @@ import org.jblas.DoubleMatrix
  * Based on Matlab code written by John Duchi.
  */
 class LogisticRegressionModel(
-  val weights: Array[Double],
+  val weights: Vector,
   val intercept: Double,
   val stochasticLosses: Array[Double]) extends RegressionModel {
 
-  // Create a column vector that can be used for predictions
-  private val weightsMatrix = new DoubleMatrix(weights.length, 1, weights:_*)
-
-  override def predict(testData: spark.RDD[Array[Double]]) = {
+  override def predict(testData: spark.RDD[Vector]) = {
     // A small optimization to avoid serializing the entire model. Only the weightsMatrix
     // and intercept is needed.
-    val localWeights = weightsMatrix
+    val localWeights = weights
     val localIntercept = intercept
-    testData.map { x =>
-      val margin = new DoubleMatrix(1, x.length, x:_*).mmul(localWeights).get(0) + localIntercept
+    testData.map { x => 
+      val margin = x * localWeights + localIntercept
       1.0/ (1.0 + math.exp(margin * -1))
     }
   }
 
-  override def predict(testData: Array[Double]): Double = {
-    val dataMat = new DoubleMatrix(1, testData.length, testData:_*)
-    val margin = dataMat.mmul(weightsMatrix).get(0) + this.intercept
+  override def predict(testData: Vector): Double = {
+    val margin = testData * weights + intercept
     1.0/ (1.0 + math.exp(margin * -1))
   }
 }
 
 class LogisticGradient extends Gradient {
-  override def compute(data: DoubleMatrix, label: Double, weights: DoubleMatrix): 
-      (DoubleMatrix, Double) = {
-    val margin: Double = -1.0 * data.dot(weights)
+  override def compute(data: Vector, label: Double, weights: Vector): 
+      (Vector, Double) = {
+    val margin: Double = -1.0 * (data * weights)
     val gradientMultiplier = (1.0 / (1.0 + math.exp(margin))) - label
 
-    val gradient = data.mul(gradientMultiplier)
+    val gradient = data * gradientMultiplier
     val loss =
       if (margin > 0) {
         math.log(1 + math.exp(0 - margin))
@@ -104,22 +101,22 @@ class LogisticRegression private (var stepSize: Double, var miniBatchFraction: D
     this
   }
 
-  def train(input: RDD[(Double, Array[Double])]): LogisticRegressionModel = {
-    val nfeatures: Int = input.take(1)(0)._2.length
-    val initialWeights = Array.fill(nfeatures)(1.0)
+  def train(input: RDD[(Double, Vector)]): LogisticRegressionModel = {
+    val nfeatures: Int = input.take(1)(0)._2.dimension
+    val initialWeights = input.take(1)(0)._2.like(Array.fill(nfeatures)(1.0))
     train(input, initialWeights)
   }
 
   def train(
-    input: RDD[(Double, Array[Double])],
-    initialWeights: Array[Double]): LogisticRegressionModel = {
+    input: RDD[(Double, Vector)],
+    initialWeights: Vector): LogisticRegressionModel = {
 
     // Add a extra variable consisting of all 1.0's for the intercept.
-    val data = input.map { case (y, features) =>
-      (y, Array(1.0, features:_*))
+    val data = input.map { case (y, features) => 
+      (y, features.like(Array(1.0, features.toArray:_*)))
     }
 
-    val initalWeightsWithIntercept = Array(1.0, initialWeights:_*)
+    val initalWeightsWithIntercept = initialWeights.like(Array(1.0, initialWeights.toArray:_*))
 
     val (weights, stochasticLosses) = GradientDescent.runMiniBatchSGD(
       data,
@@ -131,11 +128,10 @@ class LogisticRegression private (var stepSize: Double, var miniBatchFraction: D
       miniBatchFraction)
 
     val intercept = weights(0)
-    val weightsScaled = weights.tail
-
+    val weightsScaled = weights.like(weights.toArray.tail)
     val model = new LogisticRegressionModel(weightsScaled, intercept, stochasticLosses)
 
-    logInfo("Final model weights " + model.weights.mkString(","))
+    logInfo("Final model weights " + model.weights.toArray.mkString(","))
     logInfo("Final model intercept " + model.intercept)
     logInfo("Last 10 stochastic losses " + model.stochasticLosses.takeRight(10).mkString(", "))
     model
@@ -163,11 +159,11 @@ object LogisticRegression {
    *        the number of features in the data.
    */
   def train(
-      input: RDD[(Double, Array[Double])],
+      input: RDD[(Double, Vector)],
       numIterations: Int,
       stepSize: Double,
       miniBatchFraction: Double,
-      initialWeights: Array[Double])
+      initialWeights: Vector)
     : LogisticRegressionModel =
   {
     new LogisticRegression(stepSize, miniBatchFraction, numIterations).train(input, initialWeights)
@@ -184,7 +180,7 @@ object LogisticRegression {
    * @param miniBatchFraction Fraction of data to be used per iteration.
    */
   def train(
-      input: RDD[(Double, Array[Double])],
+      input: RDD[(Double, Vector)],
       numIterations: Int,
       stepSize: Double,
       miniBatchFraction: Double)
@@ -204,7 +200,7 @@ object LogisticRegression {
    * @return a LogisticRegressionModel which has the weights and offset from training.
    */
   def train(
-      input: RDD[(Double, Array[Double])],
+      input: RDD[(Double, Vector)],
       numIterations: Int,
       stepSize: Double)
     : LogisticRegressionModel =
@@ -222,7 +218,7 @@ object LogisticRegression {
    * @return a LogisticRegressionModel which has the weights and offset from training.
    */
   def train(
-      input: RDD[(Double, Array[Double])],
+      input: RDD[(Double, Vector)],
       numIterations: Int)
     : LogisticRegressionModel =
   {

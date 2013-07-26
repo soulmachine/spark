@@ -25,6 +25,7 @@ import spark.{HashPartitioner, Partitioner, SparkContext, RDD}
 import spark.storage.StorageLevel
 import spark.KryoRegistrator
 import spark.SparkContext._
+import spark.mllib.math.vector.{Vector, DenseVector}
 
 import com.esotericsoftware.kryo.Kryo
 import org.jblas.{DoubleMatrix, SimpleBlas, Solve}
@@ -136,10 +137,10 @@ class ALS private (var numBlocks: Int, var rank: Int, var iterations: Int, var l
 
     // Flatten and cache the two final RDDs to un-block them
     val usersOut = users.join(userOutLinks).flatMap { case (b, (factors, outLinkBlock)) =>
-      for (i <- 0 until factors.length) yield (outLinkBlock.elementIds(i), factors(i))
+      for (i <- 0 until factors.length) yield (outLinkBlock.elementIds(i), new DenseVector(factors(i)).asInstanceOf[Vector])
     }
     val productsOut = products.join(productOutLinks).flatMap { case (b, (factors, outLinkBlock)) =>
-      for (i <- 0 until factors.length) yield (outLinkBlock.elementIds(i), factors(i))
+      for (i <- 0 until factors.length) yield (outLinkBlock.elementIds(i), new DenseVector(factors(i)).asInstanceOf[Vector])
     }
 
     usersOut.persist()
@@ -426,9 +427,9 @@ object ALS {
       (fields(0).toInt, fields(1).toInt, fields(2).toDouble)
     }
     val model = ALS.train(ratings, rank, iters, 0.01, blocks)
-    model.userFeatures.map{ case (id, vec) => id + "," + vec.mkString(" ") }
+    model.userFeatures.map{ case (id, vec) => id + "," + vec.toArray.mkString(" ") }
                       .saveAsTextFile(outputDir + "/userFeatures")
-    model.productFeatures.map{ case (id, vec) => id + "," + vec.mkString(" ") }
+    model.productFeatures.map{ case (id, vec) => id + "," + vec.toArray.mkString(" ") }
                          .saveAsTextFile(outputDir + "/productFeatures")
     println("Final user/product features written to " + outputDir)
     System.exit(0)

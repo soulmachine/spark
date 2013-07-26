@@ -19,6 +19,7 @@ package spark.mllib.util
 
 import spark.{RDD, SparkContext}
 import spark.SparkContext._
+import spark.mllib.math.vector.{Vector, DenseVector}
 
 import org.jblas.DoubleMatrix
 
@@ -36,17 +37,17 @@ object MLUtils {
    * @return An RDD of tuples. For each tuple, the first element is the label, and the second
    *         element represents the feature values (an array of Double).
    */
-  def loadLabeledData(sc: SparkContext, dir: String): RDD[(Double, Array[Double])] = {
+  def loadLabeledData(sc: SparkContext, dir: String): RDD[(Double, Vector)] = {
     sc.textFile(dir).map { line =>
       val parts = line.split(",")
       val label = parts(0).toDouble
-      val features = parts(1).trim().split(" ").map(_.toDouble)
+      val features = new DenseVector(parts(1).trim().split(" ").map(_.toDouble))
       (label, features)
     }
   }
 
-  def saveLabeledData(data: RDD[(Double, Array[Double])], dir: String) {
-    val dataStr = data.map(x => x._1 + "," + x._2.mkString(" "))
+  def saveLabeledData(data: RDD[(Double, DenseVector)], dir: String) {
+    val dataStr = data.map(x => x._1 + "," + x._2.toArray.mkString(" "))
     dataStr.saveAsTextFile(dir)
   }
 
@@ -62,13 +63,13 @@ object MLUtils {
    *     xColMean - Row vector with mean for every column (or feature) of the input data
    *     xColSd - Row vector standard deviation for every column (or feature) of the input data.
    */
-  def computeStats(data: RDD[(Double, Array[Double])], nfeatures: Int, nexamples: Long):
+  def computeStats(data: RDD[(Double, Vector)], nfeatures: Int, nexamples: Long):
       (Double, DoubleMatrix, DoubleMatrix) = {
     val yMean: Double = data.map { case (y, features) => y }.reduce(_ + _) / nexamples
 
     // NOTE: We shuffle X by column here to compute column sum and sum of squares.
     val xColSumSq: RDD[(Int, (Double, Double))] = data.flatMap { case(y, features) =>
-      val nCols = features.length
+      val nCols = features.dimension
       // Traverse over every column and emit (col, value, value^2)
       Iterator.tabulate(nCols) { i =>
         (i, (features(i), features(i)*features(i)))

@@ -19,20 +19,21 @@ package spark.mllib.recommendation
 
 import spark.RDD
 import spark.SparkContext._
+import spark.mllib.math.vector.{Vector, DenseVector}
 
 import org.jblas._
 
 class MatrixFactorizationModel(
     val rank: Int,
-    val userFeatures: RDD[(Int, Array[Double])],
-    val productFeatures: RDD[(Int, Array[Double])])
+    val userFeatures: RDD[(Int, Vector)],
+    val productFeatures: RDD[(Int, Vector)])
   extends Serializable
 {
   /** Predict the rating of one user for one product. */
   def predict(user: Int, product: Int): Double = {
-    val userVector = new DoubleMatrix(userFeatures.lookup(user).head)
-    val productVector = new DoubleMatrix(productFeatures.lookup(product).head)
-    userVector.dot(productVector)
+    val userVector = userFeatures.lookup(user).head
+    val productVector = productFeatures.lookup(product).head
+    userVector * productVector
   }
 
   // TODO: Figure out what good bulk prediction methods would look like.

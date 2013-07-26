@@ -23,6 +23,7 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.FunSuite
 
 import spark.SparkContext
+import spark.mllib.math.vector.{Vector, DenseVector}
 
 
 class LogisticRegressionSuite extends FunSuite with BeforeAndAfterAll {
@@ -38,7 +39,7 @@ class LogisticRegressionSuite extends FunSuite with BeforeAndAfterAll {
       offset: Double,
       scale: Double,
       nPoints: Int,
-      seed: Int): Seq[(Double, Array[Double])]  = {
+      seed: Int): Seq[(Double, Vector)]  = {
     val rnd = new Random(seed)
     val x1 = Array.fill[Double](nPoints)(rnd.nextGaussian())
 
@@ -56,11 +57,11 @@ class LogisticRegressionSuite extends FunSuite with BeforeAndAfterAll {
       if (yVal > 0) 1.0 else 0.0
     }
 
-    val testData = (0 until nPoints).map(i => (y(i), Array(x1(i))))
+    val testData = (0 until nPoints).map(i => (y(i), new DenseVector(Array(x1(i)))))
     testData
   }
 
-  def validatePrediction(predictions: Seq[Double], input: Seq[(Double, Array[Double])]) {
+  def validatePrediction(predictions: Seq[Double], input: Seq[(Double, Vector)]) {
     val numOffPredictions = predictions.zip(input).filter { case (prediction, (expected, _)) =>
       // A prediction is off if the prediction is more than 0.5 away from expected value.
       math.abs(prediction - expected) > 0.5
@@ -105,7 +106,7 @@ class LogisticRegressionSuite extends FunSuite with BeforeAndAfterAll {
     val testData = generateLogisticInput(A, B, nPoints, 42)
 
     val initialB = -1.0
-    val initialWeights = Array(initialB)
+    val initialWeights = new DenseVector(Array(initialB))
 
     val testRDD = sc.parallelize(testData, 2)
     testRDD.cache()

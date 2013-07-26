@@ -44,7 +44,7 @@ class DenseVector private (dimension: Int, array: Option[DoubleMatrix] = None) e
 
   def this(that: SparseVector) = this(that.toArray)
 
-  override def clone(): DenseVector = new DenseVector(this)
+  override def deepClone(): DenseVector = new DenseVector(this)
 
   def apply(i: Int): Double = values.get(i)
 
@@ -60,7 +60,8 @@ class DenseVector private (dimension: Int, array: Option[DoubleMatrix] = None) e
   def toArray(): Array[Double] = this.values.toArray()
 
   def +(that: Vector): Vector = {
-    if(this.dimension != that.dimension) throw new DimensionException(dimension, that.dimension)
+    if(this.dimension != that.dimension) 
+      throw new DimensionException(dimension, that.dimension)
 
     val thatV = DenseVector.getOrConvert(that)
     val result = new DoubleMatrix(dimension)
@@ -75,7 +76,8 @@ class DenseVector private (dimension: Int, array: Option[DoubleMatrix] = None) e
   }
 
   def +=(that: Vector): Vector = {
-    if(this.dimension != that.dimension) throw new DimensionException(dimension, that.dimension)
+    if(this.dimension != that.dimension) 
+      throw new DimensionException(dimension, that.dimension)
 
     val thatV = DenseVector.getOrConvert(that)
     values.addi(thatV.values)
@@ -90,7 +92,8 @@ class DenseVector private (dimension: Int, array: Option[DoubleMatrix] = None) e
   }
 
   def -(that: Vector): Vector = {
-    if(this.dimension != that.dimension) throw new DimensionException(dimension, that.dimension)
+    if(this.dimension != that.dimension) 
+      throw new DimensionException(dimension, that.dimension)
 
     val thatV = DenseVector.getOrConvert(that)
     val result = new DoubleMatrix(dimension)
@@ -105,7 +108,8 @@ class DenseVector private (dimension: Int, array: Option[DoubleMatrix] = None) e
   }
 
   def -=(that: Vector): Vector = {
-    if(this.dimension != that.dimension) throw new DimensionException(dimension, that.dimension)
+    if(this.dimension != that.dimension) 
+      throw new DimensionException(dimension, that.dimension)
 
     val thatV = DenseVector.getOrConvert(that)
     values.subi(thatV.values)
@@ -119,7 +123,8 @@ class DenseVector private (dimension: Int, array: Option[DoubleMatrix] = None) e
   }
 
   def *(that: Vector): Double = {
-    if(this.dimension != that.dimension) throw new DimensionException(dimension, that.dimension)
+    if(this.dimension != that.dimension) 
+      throw new DimensionException(dimension, that.dimension)
 
     val thatV = DenseVector.getOrConvert(that)
     values.dot(thatV.values)
@@ -140,11 +145,25 @@ class DenseVector private (dimension: Int, array: Option[DoubleMatrix] = None) e
     invalidateCachedLength()
     this
   }
+  
+  def / (that: Vector): Vector = {
+    val result = this.deepClone
+    val thatV = DenseVector.getOrConvert(that)
+    result.values.divi(thatV.values)
+    result
+  }
+  /**  Elementwise divide(in place). */
+  def /= (that: Vector): Vector = {
+    val thatV = DenseVector.getOrConvert(that)
+    this.values.divi(thatV.values)
+    this
+  }
 
   def sum(): Double = this.values.sum()
 
   def getDistanceSquared(that: Vector): Double = {
-    if(this.dimension != that.dimension) throw new DimensionException(dimension, that.dimension)
+    if(this.dimension != that.dimension) 
+      throw new DimensionException(dimension, that.dimension)
 
     val thatV = DenseVector.getOrConvert(that)
     this.values.squaredDistance(thatV.values)
@@ -167,7 +186,7 @@ class DenseVector private (dimension: Int, array: Option[DoubleMatrix] = None) e
     if (power.isInfinite() || power <= 1.0) {
       throw new IllegalArgumentException("Power must be > 1 and < infinity");
     } else {
-      val result = this.clone()
+      val result = this.deepClone()
       result.values.addi(1.0)
       logi(result.values)
       result.values.divi(log(power) * norm)

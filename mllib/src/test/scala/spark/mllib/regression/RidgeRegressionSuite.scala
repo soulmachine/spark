@@ -24,6 +24,7 @@ import org.scalatest.FunSuite
 
 import spark.SparkContext
 import spark.SparkContext._
+import spark.mllib.math.vector.{Vector, DenseVector}
 
 
 class RidgeRegressionSuite extends FunSuite with BeforeAndAfterAll {
@@ -47,7 +48,7 @@ class RidgeRegressionSuite extends FunSuite with BeforeAndAfterAll {
     val xMat = (0 until 20).map(i => Array(x1(i), x2(i))).toArray
 
     val y = xMat.map(i => 3 + i(0) + i(1))
-    val testData = (0 until 20).map(i => (y(i), xMat(i))).toArray
+    val testData = (0 until 20).map(i => (y(i), new DenseVector(xMat(i)).asInstanceOf[Vector])).toArray
 
     val testRDD = sc.parallelize(testData, 2)
     testRDD.cache()
@@ -57,8 +58,8 @@ class RidgeRegressionSuite extends FunSuite with BeforeAndAfterAll {
     val model = ridgeReg.train(testRDD)
 
     assert(model.intercept >= 2.9 && model.intercept <= 3.1)
-    assert(model.weights.length === 2)
-    assert(model.weights.get(0) >= 0.9 && model.weights.get(0) <= 1.1)
-    assert(model.weights.get(1) >= 0.9 && model.weights.get(1) <= 1.1)
+    assert(model.weights.dimension === 2)
+    assert(model.weights(0) >= 0.9 && model.weights(0) <= 1.1)
+    assert(model.weights(1) >= 0.9 && model.weights(1) <= 1.1)
   }
 }

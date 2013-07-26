@@ -17,6 +17,8 @@
 
 package spark.mllib.optimization
 
+import spark.mllib.math.vector.Vector
+
 import org.jblas.DoubleMatrix
 
 abstract class Updater extends Serializable {
@@ -31,14 +33,14 @@ abstract class Updater extends Serializable {
    * @return A tuple of 2 elements. The first element is a column matrix containing updated weights,
    *         and the second element is the regularization value.
    */
-  def compute(weightsOlds: DoubleMatrix, gradient: DoubleMatrix, stepSize: Double, iter: Int):
-      (DoubleMatrix, Double)
+  def compute(weightsOlds: Vector, gradient: Vector, stepSize: Double, iter: Int):
+      (Vector, Double)
 }
 
 class SimpleUpdater extends Updater {
-  override def compute(weightsOld: DoubleMatrix, gradient: DoubleMatrix,
-      stepSize: Double, iter: Int): (DoubleMatrix, Double) = {
-    val normGradient = gradient.mul(stepSize / math.sqrt(iter))
-    (weightsOld.sub(normGradient), 0)
+  override def compute(weightsOld: Vector, gradient: Vector,
+      stepSize: Double, iter: Int): (Vector, Double) = {
+    val normGradient = gradient * stepSize / math.sqrt(iter)
+    (weightsOld - normGradient, 0)
   }
 }

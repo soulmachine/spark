@@ -18,6 +18,7 @@
 package spark.mllib.optimization
 
 import org.jblas.DoubleMatrix
+import spark.mllib.math.vector.Vector
 
 abstract class Gradient extends Serializable {
   /**
@@ -27,6 +28,6 @@ abstract class Gradient extends Serializable {
    * @param label - Label for this data item.
    * @param weights - Column matrix containing weights for every feature.
    */
-  def compute(data: DoubleMatrix, label: Double, weights: DoubleMatrix): 
-      (DoubleMatrix, Double)
+  def compute(data: Vector, label: Double, weights: Vector): 
+      (Vector, Double)
 }

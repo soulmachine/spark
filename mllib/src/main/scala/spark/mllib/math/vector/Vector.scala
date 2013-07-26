@@ -30,6 +30,10 @@ abstract class Vector extends Serializable with Equals {
    * Get the dimension of the vector.
    */
   def dimension: Int
+  
+  /** Return a deep clone of the recipient. */
+  def deepClone(): Vector
+  
   /** Get the i-th element of the vector. */
   def apply(i: Int): Double
   /** Set the i-th element of the vector. */
@@ -65,6 +69,10 @@ abstract class Vector extends Serializable with Equals {
   def / (x: Double): Vector
   /** Return the original vector containing the elements of the recipient divided by the argument. */
   def /= (x: Double): Vector
+  /**  Elementwise divide. */
+  def / (that: Vector): Vector
+  /**  Elementwise divide(in place). */
+  def /= (that: Vector): Vector
 
   /** Return the dot product of the recipient and the argument. */
   def * (that: Vector): Double
