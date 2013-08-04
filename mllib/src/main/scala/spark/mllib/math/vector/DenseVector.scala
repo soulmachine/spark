@@ -19,208 +19,333 @@ package spark.mllib.math.vector
 
 import org.jblas.DoubleMatrix
 import org.jblas.MatrixFunctions.{pow, logi, log}
-
-import cern.colt.function.IntDoubleProcedure
+import scala.collection.JavaConversions._
+import spark.mllib.math.collection.map.OrderedIntDoubleMapping
+import java.util
 
 /** Implements dense vector, based on DoubleMatrix of jblas(http://jblas.org). */
-class DenseVector private (dimension: Int, array: Option[DoubleMatrix] = None) extends AbstractVector(dimension) {
-  require(array match {
-    case Some(arr) => dimension == arr.length
-    case None => true
-  })
+class DenseVector private(private val values: DoubleMatrix) extends AbstractVector(values.length) {
 
-  private val values = array match {
-    case None => new DoubleMatrix(dimension)
-    case Some(arr) => arr
+  def this(dimension: Int) = this(new DoubleMatrix(dimension))
+
+  /** For serialization purposes only */
+  def this() = this(0)
+
+  def this(array: Array[Double]) = this(new DoubleMatrix(array))
+
+  /**
+   * Copy-constructor (for use in turning a sparse vector into a dense one, for example)
+   * @param vector The vector to copy
+   */
+  def this(vector: Vector) = {
+    this(vector.dimension)
+    for (e <- vector.nonZeroes()) {
+      values.put(e.index, e.get())
+    }
   }
 
-  private def this(_values: DoubleMatrix) = this(_values.length, Option(_values))
-  
-  def this(dimension: Int) = this(dimension, None)
+  override def apply(i: Int): Double = values.get(i)
 
-  def this(array: Array[Double]) = this(array.length, Option(new DoubleMatrix(array)))
-
-  def this(that: DenseVector) = this(that.values.dup())
-
-  def this(that: SparseVector) = this(that.toArray)
-
-  override def deepClone(): DenseVector = new DenseVector(this)
-
-  def apply(i: Int): Double = values.get(i)
-
-  def update(i: Int, value: Double): Unit = {
+  override def update(i: Int, value: Double): Unit = {
     values.put(i, value)
     invalidateCachedLength()
   }
-  
-  def like(): Vector = new DenseVector(dimension)
-  
-  def like(array: Array[Double]): Vector = new DenseVector(array)
-  
-  def toArray(): Array[Double] = this.values.toArray()
 
-  def +(that: Vector): Vector = {
-    if(this.dimension != that.dimension) 
-      throw new DimensionException(dimension, that.dimension)
+  override def clone(): DenseVector = new DenseVector(this.values)
 
-    val thatV = DenseVector.getOrConvert(that)
+  override def like(_dimension: Int): Vector = new DenseVector(_dimension)
+
+  override def like(array: Array[Double]): Vector = new DenseVector(array)
+
+  override def toArray = this.values.toArray
+
+  override def +(that: Vector): Vector = {
+    AbstractVector.checkDimension(this, that)
+
+    if (!DenseVector.isBothDense(this, that)) {
+      return super.+(that)
+    }
+
+    val thatV = that.asInstanceOf[DenseVector]
     val result = new DoubleMatrix(dimension)
     values.addi(thatV.values, result)
     new DenseVector(result)
   }
 
-  def +(x: Double): Vector = {
+  override def +(x: Double): Vector = {
     val result = new DoubleMatrix(dimension)
     values.addi(x, result)
     new DenseVector(result)
   }
 
-  def +=(that: Vector): Vector = {
-    if(this.dimension != that.dimension) 
-      throw new DimensionException(dimension, that.dimension)
+  override def +=(that: Vector): Vector = {
+    AbstractVector.checkDimension(this, that)
 
-    val thatV = DenseVector.getOrConvert(that)
+    if (!DenseVector.isBothDense(this, that)) {
+      return super.+=(that)
+    }
+
+    val thatV = that.asInstanceOf[DenseVector]
     values.addi(thatV.values)
     invalidateCachedLength()
     this
   }
 
-  def +=(x: Double): Vector = {
+  override def +=(x: Double): Vector = {
     values.addi(x)
     invalidateCachedLength()
     this
   }
 
-  def -(that: Vector): Vector = {
-    if(this.dimension != that.dimension) 
-      throw new DimensionException(dimension, that.dimension)
+  override def -(that: Vector): Vector = {
+    AbstractVector.checkDimension(this, that)
 
-    val thatV = DenseVector.getOrConvert(that)
+    if (!DenseVector.isBothDense(this, that)) {
+      return super.-(that)
+    }
+
+    val thatV = that.asInstanceOf[DenseVector]
     val result = new DoubleMatrix(dimension)
     values.subi(thatV.values, result)
     new DenseVector(result)
   }
 
-  def -(x: Double): Vector = {
+  override def -(x: Double): Vector = {
     val result = new DoubleMatrix(dimension)
     values.subi(x, result)
     new DenseVector(result)
   }
 
-  def -=(that: Vector): Vector = {
-    if(this.dimension != that.dimension) 
-      throw new DimensionException(dimension, that.dimension)
+  override def -=(that: Vector): Vector = {
+    AbstractVector.checkDimension(this, that)
 
-    val thatV = DenseVector.getOrConvert(that)
+    if (!DenseVector.isBothDense(this, that)) {
+      return super.-=(that)
+    }
+
+    val thatV = that.asInstanceOf[DenseVector]
     values.subi(thatV.values)
     invalidateCachedLength()
     this
   }
-  def -=(x: Double): Vector = {
+
+  override def -=(x: Double): Vector = {
     values.subi(x)
     invalidateCachedLength()
     this
   }
 
-  def *(that: Vector): Double = {
-    if(this.dimension != that.dimension) 
-      throw new DimensionException(dimension, that.dimension)
+  override def *(that: Vector): Double = {
+    AbstractVector.checkDimension(this, that)
 
-    val thatV = DenseVector.getOrConvert(that)
+    if (!DenseVector.isBothDense(this, that)) {
+      return super.*(that)
+    }
+
+    val thatV = that.asInstanceOf[DenseVector]
     values.dot(thatV.values)
   }
 
-  def *(x: Double): Vector = new DenseVector(this.values.mul(x))
-  
-  def *=(x: Double): Vector = {
+  override def *(x: Double): Vector = new DenseVector(this.values.mul(x))
+
+  override def *=(x: Double): Vector = {
     this.values.muli(x)
     invalidateCachedLength()
     this
   }
 
-  def /(x: Double): Vector = new DenseVector(this.values.div(x))
-  
-  def /=(x: Double): Vector = {
+  override def /(x: Double): Vector = new DenseVector(this.values.div(x))
+
+  override def /=(x: Double): Vector = {
     this.values.divi(x)
     invalidateCachedLength()
     this
   }
-  
-  def / (that: Vector): Vector = {
-    val result = this.deepClone
-    val thatV = DenseVector.getOrConvert(that)
+
+  override def /(that: Vector): Vector = {
+    AbstractVector.checkDimension(this, that)
+
+    if (!DenseVector.isBothDense(this, that)) {
+      return super./(that)
+    }
+    val result = this.clone()
+    val thatV = that.asInstanceOf[DenseVector]
     result.values.divi(thatV.values)
     result
   }
-  /**  Elementwise divide(in place). */
-  def /= (that: Vector): Vector = {
-    val thatV = DenseVector.getOrConvert(that)
+
+  override def /=(that: Vector): Vector = {
+    AbstractVector.checkDimension(this, that)
+
+    if (!DenseVector.isBothDense(this, that)) {
+      return super./=(that)
+    }
+    val thatV = that.asInstanceOf[DenseVector]
     this.values.divi(thatV.values)
     this
   }
 
-  def sum(): Double = this.values.sum()
 
-  def getDistanceSquared(that: Vector): Double = {
-    if(this.dimension != that.dimension) 
-      throw new DimensionException(dimension, that.dimension)
+  override def sum: Double = this.values.sum()
 
-    val thatV = DenseVector.getOrConvert(that)
+  override def getDistanceSquared(that: Vector): Double = {
+    AbstractVector.checkDimension(this, that)
+
+    if (!DenseVector.isBothDense(this, that)) {
+      return super.getDistanceSquared(that)
+    }
+
+    val thatV = that.asInstanceOf[DenseVector]
     this.values.squaredDistance(thatV.values)
   }
 
-  def norm(power: Double): Double = {
+  override def norm(power: Double): Double = {
     if (power < 0.0) {
       throw new IllegalArgumentException("Power must be >= 0")
     }
     // We can special case certain powers.
     if (power.isInfinite) values.normmax()
-    else if (power == 2.0) scala.math.sqrt(getLengthSquared())
+    else if (power == 2.0) scala.math.sqrt(getLengthSquared)
     else if (power == 1.0) values.norm1()
     else if (power == 0.0) values.findIndices().length
     else pow(pow(values, power).sum(), 1.0 / power)
   }
-  
-  protected def logNormalize(power: Double, norm: Double): Vector = {
+
+  override def logNormalize(power: Double, norm: Double): Vector = {
     // we can special case certain powers
-    if (power.isInfinite() || power <= 1.0) {
-      throw new IllegalArgumentException("Power must be > 1 and < infinity");
+    if (power.isInfinite || power <= 1.0) {
+      throw new IllegalArgumentException("Power must be > 1 and < infinity")
     } else {
-      val result = this.deepClone()
+      val result = this.clone()
       result.values.addi(1.0)
       logi(result.values)
       result.values.divi(log(power) * norm)
       result
     }
   }
-  
-  protected def dotSelf(): Double = values.dot(values)
 
-  override def equals(obj: Any): Boolean = obj match {
-    case vector: Vector => {
-      this.canEqual(vector) && vector.canEqual(this) && this.## == vector.## && {
-        vector match {
-          case v: SparseVector => this.compareTo(v)
-          case v: DenseVector => values.equals(v.values)
-          case _ => false
-        }
+  protected override def dotSelf(): Double = values.dot(values)
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case that: DenseVector => values.equals(that.values)
+      case _ => super.equals(obj)
+    }
+  }
+
+  def addAll(v: Vector) {
+    AbstractVector.checkDimension(this, v)
+
+    for (e <- v.nonZeroes()) {
+      values.put(e.index, e.get())
+    }
+  }
+
+  private final class NonDefaultIterator extends util.Iterator[Vector.Element] {
+    private val element = new DenseElement()
+    private var index = -1
+    private var lookAheadIndex = -1
+
+    override def hasNext: Boolean = {
+      if (lookAheadIndex == index) {
+        // User calls hasNext() after a next()
+        lookAhead()
+      } // else user called hasNext() repeatedly.
+      lookAheadIndex < dimension
+    }
+
+    private def lookAhead() {
+      lookAheadIndex += 1
+      while (lookAheadIndex < dimension && values.get(lookAheadIndex) == 0.0) {
+        lookAheadIndex += 1
       }
     }
-    case _ => false
+
+    override def next(): Vector.Element = {
+      if (lookAheadIndex == index) {
+        // If user called next() without checking hasNext().
+        lookAhead()
+      }
+
+      assert(lookAheadIndex > index)
+      index = lookAheadIndex
+
+      if (index >= dimension) {
+        // If the end is reached.
+        throw new NoSuchElementException()
+      }
+
+      element._index = index
+      element
+    }
+
+    def remove() {
+      throw new UnsupportedOperationException()
+    }
   }
-  
-  override def toString(): String = values.toString()
+
+  private final class AllIterator extends util.Iterator[Vector.Element] {
+    private val element = new DenseElement()
+
+    override def hasNext: Boolean = element.index + 1 < dimension
+
+    override def next(): Vector.Element = {
+      if (element.index + 1 >= dimension) {
+        // If the end is reached.
+        throw new NoSuchElementException()
+      }
+      element._index += 1
+      element
+    }
+
+    def remove() {
+      throw new UnsupportedOperationException()
+    }
+  }
+
+  private final class DenseElement(private[DenseVector] var _index: Int = -1) extends Vector.Element {
+
+    override def get(): Double = values.get(index)
+
+    override def index: Int = _index
+
+    override def set(value: Double) {
+      invalidateCachedLength()
+      values.put(index, value)
+    }
+  }
+
+  def isDense: Boolean = true
+
+  def isSequentialAccess: Boolean = true
+
+  def mergeUpdates(updates: OrderedIntDoubleMapping) {
+    val numUpdates = updates.getNumMappings
+    val indices = updates.getIndices()
+    val values = updates.getValues()
+
+    for (i <- 0 until numUpdates) {
+      values(indices(i)) = values(i)
+    }
+  }
+
+  def getNumNondefaultElements: Int = values.length
+
+  def getLookupCost: Double = 1.0
+
+  def getIteratorAdvanceCost: Double = 1.0
+
+  def isAddConstantTime: Boolean = true
+
+  protected def iterator: Iterator[Vector.Element] = new AllIterator()
+
+  protected def nonZeroIterator: Iterator[Vector.Element] = new NonDefaultIterator()
 }
 
 object DenseVector {
   def apply(values: Double*): DenseVector = new DenseVector(values.toArray)
-  
-  /**
-   * If a given vector is SparseVector then convert it to a DenseVector, otherwise return itself.
-   */
-  private def getOrConvert(v: Vector): DenseVector = v match {
-    case v: DenseVector => v
-    case v: SparseVector => new DenseVector(v)
-    case _ => throw new UnsupportedOperationException
+
+  private def isBothDense(v1: Vector, v2: Vector): Boolean = {
+    v1.isDense && v2.isDense
   }
 }

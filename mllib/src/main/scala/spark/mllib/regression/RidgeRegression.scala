@@ -76,13 +76,13 @@ class RidgeRegression private (var lambdaLow: Double, var lambdaHigh: Double)
     val nexamples: Long = input.count()
 
     val (yMean, xColMean, xColSd) = MLUtils.computeStats(input, nfeatures, nexamples)
-    
+
     val data = input.map { case(y, features) =>
       val yNormalized = y - yMean
       val xColMeanV = features.like(xColMean.toArray())
       val xColSdV = features.like(xColSd.toArray())
-        
-      val featuresMat = features.deepClone
+
+      val featuresMat = features.clone()
       val featuresNormalized = (featuresMat - xColMeanV) / xColSdV
       (yNormalized, featuresNormalized.toArray)
     }
@@ -173,7 +173,7 @@ class RidgeRegression private (var lambdaLow: Double, var lambdaHigh: Double)
 
 /**
  * Top-level methods for calling Ridge Regression.
- * NOTE(shivaram): We use multiple train methods instead of default arguments to support 
+ * NOTE(shivaram): We use multiple train methods instead of default arguments to support
  *                 Java programs.
  */
 object RidgeRegression {

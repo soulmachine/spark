@@ -15,23 +15,21 @@
  * limitations under the License.
  */
 
-package spark.mllib.math.vector.distance
+package spark.mllib.math
 
-import org.scalatest.FunSuite
-import spark.mllib.math.vector.{DenseVector, RandomAccessSparseVector}
+/**
+ * Defines some useful constants.
+ */
+final object Constants {
+  val MACHEP = 1.11022302462515654042E-16
+  val MAXLOG = 7.09782712893383996732E2
+  val MINLOG = -7.451332191019412076235E2
+  val MAXGAM = 171.624376956302725
+  val SQTPI = 2.50662827463100050242E0
+  val LOGPI = 1.14472988584940017414
 
-class SquaredEuclideanDistanceMeasureSuite extends FunSuite {
-  test("distance") {
-    val distanceMeasure = new SquaredEuclideanDistanceMeasure()
+  val BIG = 4.503599627370496e15
+  val BIG_INVERSE = 2.22044604925031308085e-16
 
-    val v1 = DenseVector(3.0, 0.0)
-    val v2 = DenseVector(0.0, 4.0)
-    val v3 = RandomAccessSparseVector(2, (0, 3.0))
-    val v4 = RandomAccessSparseVector(2, (1, 4.0))
-
-    assert(distanceMeasure.distance(v1, v2) == 25.0)
-    assert(distanceMeasure.distance(v3, v4) == 25.0)
-    assert(distanceMeasure.distance(v1, v4) == 25.0)
-    assert(distanceMeasure.distance(v2, v3) == 25.0)
-  }
+  val EPSILON = 1.0E-6
 }

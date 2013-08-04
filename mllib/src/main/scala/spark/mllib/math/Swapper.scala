@@ -15,23 +15,13 @@
  * limitations under the License.
  */
 
-package spark.mllib.math.vector.distance
+package spark.mllib.math
 
-import org.scalatest.FunSuite
-import spark.mllib.math.vector.{DenseVector, RandomAccessSparseVector}
+/**
+ * Interface for an object that knows how to swap elements at two positions (a,b).
+ */
+abstract class Swapper {
 
-class SquaredEuclideanDistanceMeasureSuite extends FunSuite {
-  test("distance") {
-    val distanceMeasure = new SquaredEuclideanDistanceMeasure()
-
-    val v1 = DenseVector(3.0, 0.0)
-    val v2 = DenseVector(0.0, 4.0)
-    val v3 = RandomAccessSparseVector(2, (0, 3.0))
-    val v4 = RandomAccessSparseVector(2, (1, 4.0))
-
-    assert(distanceMeasure.distance(v1, v2) == 25.0)
-    assert(distanceMeasure.distance(v3, v4) == 25.0)
-    assert(distanceMeasure.distance(v1, v4) == 25.0)
-    assert(distanceMeasure.distance(v2, v3) == 25.0)
-  }
+  /** Swaps the generic data g[a] with g[b]. */
+  def swap(a: Int, b: Int): Unit
 }

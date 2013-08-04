@@ -15,20 +15,29 @@
  * limitations under the License.
  */
 
-package spark.mllib.math.vector.distance
-
-import spark.mllib.math.vector.Vector
+package spark.mllib.math.function
 
 /**
- * Like {@link EuclideanDistanceMeasure} but it does not take the square root.
- * <p/>
- * Thus, it is not actually the Euclidean Distance, but it is saves on computation when you only need the
- * distance for comparison and don't care about the actual value as a distance.
+ * Only for performance tuning of compute intensive linear algebraic computations.
+ * Constructs functions that return one of
+ * <ul>
+ * <li><tt>a * constant</tt>
+ * <li><tt>a / constant</tt>
+ * </ul> 
+ * <tt>a</tt> is variable, <tt>constant</tt> is fixed, but for performance reasons publicly accessible.
+ * Intended to be passed to <tt>matrix.assign(function)</tt> methods.
  */
-class SquaredEuclideanDistanceMeasure extends DistanceMeasure {
-  override def distance(v1: Vector, v2: Vector): Double = v2.getDistanceSquared(v1)
 
-  override def distance(centroidLengthSquare: Double, centroid: Vector, v: Vector): Double = {
-    centroidLengthSquare - 2 * (v * centroid) + v.getLengthSquared
-  }
+final class Mult(var multiplicator: Double = 0.0) extends DoubleFunction {
+
+  /** Returns the result of the function evaluation. */
+  override def apply(a: Double): Double = a * multiplicator
+}
+
+final object Mult {
+   /** <tt>a / constant</tt>. */
+  def div(constant: Double): Mult = mult(1 / constant)
+
+  /** <tt>a * constant</tt>. */
+  def mult(constant: Double): Mult = new Mult(constant)
 }

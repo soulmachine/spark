@@ -15,23 +15,12 @@
  * limitations under the License.
  */
 
-package spark.mllib.math.vector.distance
+package spark.mllib.math.function
 
-import org.scalatest.FunSuite
-import spark.mllib.math.vector.{DenseVector, RandomAccessSparseVector}
 
-class SquaredEuclideanDistanceMeasureSuite extends FunSuite {
-  test("distance") {
-    val distanceMeasure = new SquaredEuclideanDistanceMeasure()
-
-    val v1 = DenseVector(3.0, 0.0)
-    val v2 = DenseVector(0.0, 4.0)
-    val v3 = RandomAccessSparseVector(2, (0, 3.0))
-    val v4 = RandomAccessSparseVector(2, (1, 4.0))
-
-    assert(distanceMeasure.distance(v1, v2) == 25.0)
-    assert(distanceMeasure.distance(v3, v4) == 25.0)
-    assert(distanceMeasure.distance(v1, v4) == 25.0)
-    assert(distanceMeasure.distance(v2, v3) == 25.0)
-  }
+/**
+ * A function that takes a single argument and returns a single value.
+ */
+abstract class DoubleFunction extends (Double => Double) {
+  def isDensifying: Boolean = math.abs(apply(0.0)) != 0.0
 }

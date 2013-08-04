@@ -25,7 +25,7 @@ import org.scalatest.FunSuite
 import spark.{SparkContext, RDD}
 import spark.SparkContext._
 
-import spark.mllib.math.vector.{Vector, DenseVector, SparseVector}
+import spark.mllib.math.vector.{Vector, DenseVector, RandomAccessSparseVector}
 
 import org.jblas._
 

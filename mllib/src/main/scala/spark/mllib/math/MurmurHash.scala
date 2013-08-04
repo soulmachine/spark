@@ -15,23 +15,31 @@
  * limitations under the License.
  */
 
-package spark.mllib.math.vector.distance
+package spark.mllib.math
 
-import org.scalatest.FunSuite
-import spark.mllib.math.vector.{DenseVector, RandomAccessSparseVector}
+/** MurmurHash3 algorithm. */
+object MurmurHash {
+  
+  /**
+   * Hashes bytes in an array.
+   * @param data The bytes to hash.
+   * @param seed The seed for the hash.
+   * @return The 32 bit hash of the bytes in question.
+   */
+  def hash(data: Array[Byte], seed: Int): Int = {
+    util.MurmurHash.startHash(seed)
+    util.MurmurHash.arrayHash(data)
+  }
 
-class SquaredEuclideanDistanceMeasureSuite extends FunSuite {
-  test("distance") {
-    val distanceMeasure = new SquaredEuclideanDistanceMeasure()
-
-    val v1 = DenseVector(3.0, 0.0)
-    val v2 = DenseVector(0.0, 4.0)
-    val v3 = RandomAccessSparseVector(2, (0, 3.0))
-    val v4 = RandomAccessSparseVector(2, (1, 4.0))
-
-    assert(distanceMeasure.distance(v1, v2) == 25.0)
-    assert(distanceMeasure.distance(v3, v4) == 25.0)
-    assert(distanceMeasure.distance(v1, v4) == 25.0)
-    assert(distanceMeasure.distance(v2, v3) == 25.0)
+  /**
+   * Hashes bytes in part of an array.
+   * @param data    The data to hash.
+   * @param offset  Where to start munging.
+   * @param length  How many bytes to process.
+   * @param seed    The seed to start with.
+   * @return        The 32-bit hash of the data in question.
+   */
+  def hash(data: Array[Byte], offset: Int, length: Int, seed: Int): Int = {
+    hash(data.slice(offset, offset + length), seed)
   }
 }

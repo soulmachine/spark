@@ -20,30 +20,30 @@ package spark.mllib.math.vector.distance
 import spark.mllib.math.vector.{Vector, DimensionException}
 
 class CosineDistanceMeasure extends DistanceMeasure {
-  
+
   override def distance(v1: Vector, v2: Vector): Double = {
     if(v1.dimension != v2.dimension) throw new DimensionException(v1.dimension, v2.dimension)
-    
-    val lengthSquaredv1 = v1.getLengthSquared()
-    val lengthSquaredv2 = v2.getLengthSquared()
-    
+
+    val lengthSquaredv1 = v1.getLengthSquared
+    val lengthSquaredv2 = v2.getLengthSquared
+
     val dotProduct = v2 * v1
     val denominatorTemp = scala.math.sqrt(lengthSquaredv1) * scala.math.sqrt(lengthSquaredv2)
-    
+
     // correct for floating-point rounding errors
     val denominator = if (denominatorTemp < dotProduct) dotProduct else denominatorTemp
-    
+
     // correct for zero-vector corner case
     if (denominator == 0 && dotProduct == 0) 0
     else 1.0 - dotProduct / denominator
   }
-  
+
   override def distance(centroidLengthSquare: Double, centroid: Vector, v: Vector): Double = {
-    val lengthSquaredv = v.getLengthSquared()
-    
+    val lengthSquaredv = v.getLengthSquared
+
     val dotProduct = v * centroid
     val denominatorTemp = scala.math.sqrt(centroidLengthSquare) * scala.math.sqrt(lengthSquaredv)
-    
+
     // correct for floating-point rounding errors
     val denominator = if (denominatorTemp < dotProduct) dotProduct else denominatorTemp
 

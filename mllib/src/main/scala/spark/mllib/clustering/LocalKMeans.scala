@@ -19,7 +19,7 @@ package spark.mllib.clustering
 
 import scala.util.Random
 
-import spark.mllib.math.vector.{Vector, DenseVector, SparseVector}
+import spark.mllib.math.vector.{Vector, DenseVector, RandomAccessSparseVector}
 
 import org.jblas.{DoubleMatrix, SimpleBlas}
 

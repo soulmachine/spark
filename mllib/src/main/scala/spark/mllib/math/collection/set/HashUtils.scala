@@ -15,23 +15,32 @@
  * limitations under the License.
  */
 
-package spark.mllib.math.vector.distance
+package spark.mllib.math.collection.set
 
-import org.scalatest.FunSuite
-import spark.mllib.math.vector.{DenseVector, RandomAccessSparseVector}
+/**
+ * Computes hashes of primitive values.  Providing these as statics allows the templated code
+ * to compute hashes of sets.
+ */
+private[math] final object HashUtils {
 
-class SquaredEuclideanDistanceMeasureSuite extends FunSuite {
-  test("distance") {
-    val distanceMeasure = new SquaredEuclideanDistanceMeasure()
+  def hash(x: Byte): Int = x
 
-    val v1 = DenseVector(3.0, 0.0)
-    val v2 = DenseVector(0.0, 4.0)
-    val v3 = RandomAccessSparseVector(2, (0, 3.0))
-    val v4 = RandomAccessSparseVector(2, (1, 4.0))
+  def hash(x: Short): Int = x
 
-    assert(distanceMeasure.distance(v1, v2) == 25.0)
-    assert(distanceMeasure.distance(v3, v4) == 25.0)
-    assert(distanceMeasure.distance(v1, v4) == 25.0)
-    assert(distanceMeasure.distance(v2, v3) == 25.0)
+  def hash(x: Char): Int = x
+
+  def hash(x: Int): Int = x
+
+  def hash(x: Float): Int = {
+    java.lang.Float.floatToIntBits(x) >>> 3 +
+    java.lang.Float.floatToIntBits((math.Pi * x).toFloat)
+  }
+
+  def hash(x: Double): Int = {
+    hash(17 * java.lang.Double.doubleToLongBits(x))
+  }
+
+  def hash(x: Long): Int = {
+    ((x * 11) >>> 32 ^ x).toInt
   }
 }

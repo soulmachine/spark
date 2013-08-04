@@ -59,7 +59,7 @@ object GradientDescent {
     val miniBatchSize = nexamples * miniBatchFraction
 
     // Initialize weights as a column vector
-    var weights = initialWeights.deepClone()
+    var weights = initialWeights.clone()
     var reg_val = 0.0
 
     for (i <- 1 to numIters) {

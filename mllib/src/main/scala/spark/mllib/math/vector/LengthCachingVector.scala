@@ -27,7 +27,7 @@ trait LengthCachingVector {
    * @return The sum of the squares of all elements in the vector. 
    * Square root of this value is the length of the vector.
    */
-  def getLengthSquared(): Double
+  def getLengthSquared: Double
 
   /**
    * Invalidates the length cache.  This should be called by all mutators of the vector.

@@ -18,7 +18,7 @@
 package spark.mllib.math.vector.distance
 
 import org.scalatest.FunSuite
-import spark.mllib.math.vector.{DenseVector, SparseVector}
+import spark.mllib.math.vector.{DenseVector, RandomAccessSparseVector}
 
 class EuclideanDistanceMeasureSuite extends FunSuite {
   test("distance") {
@@ -26,9 +26,9 @@ class EuclideanDistanceMeasureSuite extends FunSuite {
 
     val v1 = DenseVector(3.0, 0.0)
     val v2 = DenseVector(0.0, 4.0)
-    val v3 = SparseVector(2, (0, 3.0))
-    val v4 = SparseVector(2, (1, 4.0))
-    
+    val v3 = RandomAccessSparseVector(2, (0, 3.0))
+    val v4 = RandomAccessSparseVector(2, (1, 4.0))
+
     assert(distanceMeasure.distance(v1, v2) == 5.0)
     assert(distanceMeasure.distance(v3, v4) == 5.0)
     assert(distanceMeasure.distance(v1, v4) == 5.0)

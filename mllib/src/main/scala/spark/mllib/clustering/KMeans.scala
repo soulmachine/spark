@@ -146,7 +146,7 @@ class KMeans private (
         val k = activeCenters(0).length
         val dims = activeCenters(0)(0).dimension
 
-        val sums = Array.fill(runs, k)(activeCenters(0)(0).like)
+        val sums = Array.fill(runs, k)(activeCenters(0)(0).like())
         val counts = Array.fill(runs, k)(0L)
 
         for (point <- points; (centers, runIndex) <- activeCenters.zipWithIndex) {
@@ -155,7 +155,7 @@ class KMeans private (
           sums(runIndex)(bestCenter) += point
           counts(runIndex)(bestCenter) += 1
         }
-        
+
         val contribs = for (i <- 0 until runs; j <- 0 until k) yield {
           ((i, j), (sums(i)(j), counts(i)(j)))
         }

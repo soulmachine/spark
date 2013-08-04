@@ -15,20 +15,23 @@
  * limitations under the License.
  */
 
-package spark.mllib.math.vector.distance
+package spark.mllib.math.function
 
-import spark.mllib.math.vector.Vector
+import spark.mllib.math.numeric.Numeric
 
 /**
- * Like {@link EuclideanDistanceMeasure} but it does not take the square root.
- * <p/>
- * Thus, it is not actually the Euclidean Distance, but it is saves on computation when you only need the
- * distance for comparison and don't care about the actual value as a distance.
+ * A procedure that takes a single argument and does not return a value.
+ *
+ * Applies a procedure to an argument. Optionally can return a boolean flag to inform the object calling the
+ * procedure.
+ *
+ * <p>Example: forEach() methods often use procedure objects. To signal to a forEach() method whether iteration should
+ * continue normally or terminate (because for example a matching element has been found), a procedure can return
+ * <tt>false</tt> to indicate termination and <tt>true</tt> to indicate continuation.
+ *
+ * @param element element passed to the procedure.
+ * @return a flag  to inform the object calling the procedure.
  */
-class SquaredEuclideanDistanceMeasure extends DistanceMeasure {
-  override def distance(v1: Vector, v2: Vector): Double = v2.getDistanceSquared(v1)
+abstract class NumericProcedure[@specialized T: Numeric: ClassManifest] extends (T => Boolean) {
 
-  override def distance(centroidLengthSquare: Double, centroid: Vector, v: Vector): Double = {
-    centroidLengthSquare - 2 * (v * centroid) + v.getLengthSquared
-  }
 }

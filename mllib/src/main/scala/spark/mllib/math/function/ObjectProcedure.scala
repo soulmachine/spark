@@ -15,23 +15,22 @@
  * limitations under the License.
  */
 
-package spark.mllib.math.vector.distance
+package spark.mllib.math.function
 
-import org.scalatest.FunSuite
-import spark.mllib.math.vector.{DenseVector, RandomAccessSparseVector}
+/**
+ * A procedure that takes a single argument and does not return a value.
+ * 
+ * Applies a procedure to an argument. Optionally can return a boolean flag to inform the object calling the
+ * procedure.
+ *
+ * <p>Example: forEach() methods often use procedure objects. To signal to a forEach() method whether iteration should
+ * continue normally or terminate (because for example a matching element has been found), a procedure can return
+ * <tt>false</tt> to indicate termination and <tt>true</tt> to indicate continuation.
+ *
+ * @param element element passed to the procedure.
+ * @return a flag  to inform the object calling the procedure.
+ */
+ 
+abstract class ObjectProcedure[T:ClassManifest] extends (T => Boolean) {
 
-class SquaredEuclideanDistanceMeasureSuite extends FunSuite {
-  test("distance") {
-    val distanceMeasure = new SquaredEuclideanDistanceMeasure()
-
-    val v1 = DenseVector(3.0, 0.0)
-    val v2 = DenseVector(0.0, 4.0)
-    val v3 = RandomAccessSparseVector(2, (0, 3.0))
-    val v4 = RandomAccessSparseVector(2, (1, 4.0))
-
-    assert(distanceMeasure.distance(v1, v2) == 25.0)
-    assert(distanceMeasure.distance(v3, v4) == 25.0)
-    assert(distanceMeasure.distance(v1, v4) == 25.0)
-    assert(distanceMeasure.distance(v2, v3) == 25.0)
-  }
 }
