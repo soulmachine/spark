@@ -169,7 +169,7 @@ class KMeans private (
           val (sum, count) = totalContribs((i, j))
           if (count != 0) {
             val newCenter = sum / count
-            if (newCenter.getDistanceSquared(centers(run)(j)) > epsilon * epsilon) {
+            if (newCenter.distanceSquared(centers(run)(j)) > epsilon * epsilon) {
               changed = true
             }
             centers(run)(j) = newCenter
@@ -292,7 +292,7 @@ object KMeans {
     var bestDistance = Double.PositiveInfinity
     var bestIndex = 0
     for (i <- 0 until centers.length) {
-      val distance = point.getDistanceSquared(centers(i))
+      val distance = point.distanceSquared(centers(i))
       if (distance < bestDistance) {
         bestDistance = distance
         bestIndex = i
@@ -307,7 +307,7 @@ object KMeans {
   private[mllib] def pointCost(centers: Array[Vector], point: Vector): Double = {
     var bestDistance = Double.PositiveInfinity
     for (i <- 0 until centers.length) {
-      val distance = point.getDistanceSquared(centers(i))
+      val distance = point.distanceSquared(centers(i))
       if (distance < bestDistance) {
         bestDistance = distance
       }

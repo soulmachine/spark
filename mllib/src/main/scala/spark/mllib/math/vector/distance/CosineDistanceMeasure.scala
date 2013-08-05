@@ -24,8 +24,8 @@ class CosineDistanceMeasure extends DistanceMeasure {
   override def distance(v1: Vector, v2: Vector): Double = {
     if(v1.dimension != v2.dimension) throw new DimensionException(v1.dimension, v2.dimension)
 
-    val lengthSquaredv1 = v1.getLengthSquared
-    val lengthSquaredv2 = v2.getLengthSquared
+    val lengthSquaredv1 = v1.lengthSquared
+    val lengthSquaredv2 = v2.lengthSquared
 
     val dotProduct = v2 * v1
     val denominatorTemp = scala.math.sqrt(lengthSquaredv1) * scala.math.sqrt(lengthSquaredv2)
@@ -39,7 +39,7 @@ class CosineDistanceMeasure extends DistanceMeasure {
   }
 
   override def distance(centroidLengthSquare: Double, centroid: Vector, v: Vector): Double = {
-    val lengthSquaredv = v.getLengthSquared
+    val lengthSquaredv = v.lengthSquared
 
     val dotProduct = v * centroid
     val denominatorTemp = scala.math.sqrt(centroidLengthSquare) * scala.math.sqrt(lengthSquaredv)

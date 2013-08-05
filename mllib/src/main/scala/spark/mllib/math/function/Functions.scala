@@ -610,7 +610,7 @@ object Functions {
   val SECOND_LEFT_ZERO = new DoubleDoubleFunction() {
     override def apply(x: Double, y: Double): Double = {
       require(x == 0, "This special version of SECOND needs x == 0")
-      return y
+      y
     }
 
     /**

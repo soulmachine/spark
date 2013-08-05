@@ -17,24 +17,23 @@
 
 package spark.mllib.math.vector
 
-import scala.collection.JavaConversions._
 import spark.mllib.math.function.{DoubleFunction, DoubleDoubleFunction, Functions}
 import spark.mllib.math.collection.map.OrderedIntDoubleMapping
 import spark.mllib.math.collection.set.HashUtils
 
-/** Implementations of generic capabilities like getLengthSquared and normalize.
+/** Implementations of generic capabilities like lengthSquared and normalize.
   * And Implementations of operations between two different kinds of vectors.
   */
 abstract class AbstractVector(val dimension: Int) extends Vector with LengthCachingVector {
-  protected var lengthSquared = -1.0
+  protected var _lengthSquared: Option[Double] = None
 
-  override def all(): Iterable[Vector.Element] = new Iterable[Vector.Element]() {
+  override def all: Iterable[Vector.Element] = new Iterable[Vector.Element]() {
     override def iterator: Iterator[Vector.Element] = {
       AbstractVector.this.iterator
     }
   }
 
-  override def nonZeroes(): Iterable[Vector.Element] = new Iterable[Vector.Element]() {
+  override def nonZeroes: Iterable[Vector.Element] = new Iterable[Vector.Element]() {
     override def iterator: Iterator[Vector.Element] = nonZeroIterator
   }
 
@@ -82,10 +81,10 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
         iter = iterator
       }
       var element = iter.next()
-      result = map(element.get())
+      result = map(element.value)
       while (iter.hasNext) {
         element = iter.next()
-        result = aggregator(result, map(element.get()))
+        result = aggregator(result, map(element.value))
       }
     } else {
       result = map(this(0))
@@ -98,11 +97,11 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
   }
 
   override def aggregate(other: Vector, aggregator: DoubleDoubleFunction, combiner: DoubleDoubleFunction): Double = {
-    assert(dimension == other.dimension, "Vector dimensions differ")
-    if (dimension == 0) {
-      return 0
-    }
-    VectorBinaryAggregate.aggregateBest(this, other, aggregator, combiner)
+    require(dimension == other.dimension, new DimensionException(dimension, other.dimension))
+    if (dimension == 0)
+      0
+    else
+      VectorBinaryAggregate.aggregateBest(this, other, aggregator, combiner)
   }
 
   /**
@@ -123,7 +122,7 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
   override def clone(): Vector = {
     try {
       val r = super.clone().asInstanceOf[AbstractVector]
-      r.lengthSquared = lengthSquared
+      r._lengthSquared = _lengthSquared
       r
     } catch {
       case e: CloneNotSupportedException => throw new IllegalStateException("Can't happen")
@@ -150,11 +149,11 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
 
   override def getElement(index: Int): Vector.Element = new LocalElement(index)
 
-  def normalize(): Vector = this / scala.math.sqrt(getLengthSquared)
+  def normalize(): Vector = this / scala.math.sqrt(lengthSquared)
 
   def normalize(power: Double): Vector = this / norm(power)
 
-  def logNormalize(): Vector = logNormalize(2.0, scala.math.sqrt(getLengthSquared))
+  def logNormalize(): Vector = logNormalize(2.0, scala.math.sqrt(lengthSquared))
 
   def logNormalize(power: Double): Vector = logNormalize(power, norm(power))
 
@@ -165,8 +164,8 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
     } else {
       val denominator = norm * math.log(power)
       val result = createOptimizedCopy()
-      for (element <- result.nonZeroes()) {
-        element.set(math.log1p(element.get()) / denominator)
+      for (element <- result.nonZeroes) {
+        element.set(math.log1p(element.value) / denominator)
       }
       result
     }
@@ -180,12 +179,12 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
     if (power.isInfinity) {
       aggregate(Functions.MAX, Functions.ABS)
     } else if (power == 2.0) {
-      math.sqrt(getLengthSquared)
+      math.sqrt(lengthSquared)
     } else if (power == 1.0) {
       var result = 0.0
       val iterator = this.nonZeroIterator
       while (iterator.hasNext) {
-        result += math.abs(iterator.next().get())
+        result += math.abs(iterator.next().value)
       }
       result
       // TODO: this should ideally be used, but it's slower.
@@ -197,40 +196,35 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
     }
   }
 
-  def getLengthSquared: Double = {
-    if (lengthSquared < 0.0) {
-      lengthSquared = dotSelf()
-    }
-    lengthSquared
+  def lengthSquared: Double = _lengthSquared match {
+    case None =>
+      _lengthSquared = Some(dotSelf())
+      _lengthSquared.get
+    case Some(length) =>
+      length
   }
 
   def invalidateCachedLength() {
-    lengthSquared = -1
+    _lengthSquared = None
   }
 
-  override def getDistanceSquared(that: Vector): Double = {
-    if (dimension != that.dimension) {
-      throw new DimensionException(dimension, that.dimension)
-    }
-    val thisLength = getLengthSquared
-    val thatLength = that.getLengthSquared
-    val dot = this * that
-    val distanceEstimate = thisLength + thatLength - 2 * dot
-    if (distanceEstimate > 1.0e-3 * (thisLength + thatLength)) {
+  override def distanceSquared(that: Vector): Double = {
+    require(dimension == that.dimension, new DimensionException(dimension, that.dimension))
+
+    val distanceEstimate = lengthSquared + that.lengthSquared - 2 * (this * that)
+
+    if (distanceEstimate > 1.0e-3 * (lengthSquared + that.lengthSquared))
       // The vectors are far enough from each other that the formula is accurate.
       math.max(distanceEstimate, 0)
-    } else {
+    else
       aggregate(that, Functions.PLUS, Functions.MINUS_SQUARED)
-    }
   }
 
-  override def maxValue: Double = {
-    if (dimension == 0) {
+  override def maxValue: Double =
+    if (dimension == 0)
       Double.NegativeInfinity
-    } else {
+    else
       aggregate(Functions.MAX, Functions.IDENTITY)
-    }
-  }
 
   override def maxValueIndex: Int = {
     var result = -1
@@ -240,7 +234,7 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
     while (iter.hasNext) {
       nonZeroElements += 1
       val element = iter.next()
-      val tmp = element.get()
+      val tmp = element.value
       if (tmp > max) {
         max = tmp
         result = element.index
@@ -250,8 +244,8 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
     // unfilled element(0.0) could be the maxValue hence we need to
     // find one of those elements
     if (nonZeroElements < dimension && max < 0.0) {
-      for (element <- all()) {
-        if (element.get() == 0.0) {
+      for (element <- all) {
+        if (element.value == 0.0) {
           return element.index
         }
       }
@@ -275,7 +269,7 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
     while (iter.hasNext) {
       nonZeroElements += 1
       val element = iter.next()
-      val tmp = element.get()
+      val tmp = element.value
       if (tmp < min) {
         min = tmp
         result = element.index
@@ -285,8 +279,8 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
     // unfilled element(0.0) could be the maxValue hence we need to
     // find one of those elements
     if (nonZeroElements < dimension && min > 0.0) {
-      for (element <- all()) {
-        if (element.get() == 0.0) {
+      for (element <- all) {
+        if (element.value == 0.0) {
           return element.index
         }
       }
@@ -314,7 +308,7 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
     var count = 0
     val it = nonZeroIterator
     while (it.hasNext) {
-      if (it.next().get() != 0.0) {
+      if (it.next().value != 0.0) {
         count += 1
       }
     }
@@ -336,7 +330,7 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
         val updates = new OrderedIntDoubleMapping()
         while (it.hasNext) {
           val element = it.next()
-          if (element.get() == 0.0) {
+          if (element.value == 0.0) {
             updates(element.index) = value
           } else {
             element.set(value)
@@ -363,7 +357,7 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
       while (it.hasNext) {
         val element = it.next()
         val index = element.index
-        if (element.get() == 0.0) {
+        if (element.value == 0.0) {
           updates(index) = values(index)
         } else {
           element.set(values(index))
@@ -385,7 +379,7 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
     val iter = if (!f.isDensifying) nonZeroIterator else iterator
     while (iter.hasNext) {
       val element = iter.next()
-      element.set(f(element.get()))
+      element.set(f(element.value))
     }
     invalidateCachedLength()
     this
@@ -404,7 +398,7 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
     val iter = if (f(0, y) == 0) nonZeroIterator else iterator
     while (iter.hasNext) {
       val element = iter.next()
-      element.set(f(element.get(), y))
+      element.set(f(element.value, y))
     }
     invalidateCachedLength()
     this
@@ -428,7 +422,7 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
     while (iter.hasNext) {
       val ele = iter.next()
       //TODO: RandomUtils
-      result += ele.index * HashUtils.hash(ele.get())
+      result += ele.index * HashUtils.hash(ele.value)
     }
     result
   }
@@ -490,7 +484,7 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
         val e = iter.next()
         result.append(e.index)
         result.append(':')
-        result.append(e.get())
+        result.append(e.value)
         result.append(',')
       }
       result.setCharAt(result.length - 1, '}')
@@ -518,7 +512,7 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
   protected final class LocalElement(private[AbstractVector] val _index: Int) extends Vector.Element {
 
     //TODO: how to this(index)
-    override def get(): Double = apply(index)
+    override def value: Double = apply(index)
 
     override def index: Int = _index
 
@@ -585,7 +579,7 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
     AbstractVector.checkDimension(this, that)
 
     if (this eq that) {
-      getLengthSquared
+      lengthSquared
     } else {
       aggregate(that, Functions.PLUS, Functions.MULT)
     }
@@ -622,8 +616,8 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
       return this.clone()
     }
     val result = createOptimizedCopy()
-    for (element <- result.nonZeroes()) {
-      element.set(element.get() / x)
+    for (element <- result.nonZeroes) {
+      element.set(element.value / x)
     }
     result
   }
@@ -632,8 +626,8 @@ abstract class AbstractVector(val dimension: Int) extends Vector with LengthCach
     if (x == 1.0) {
       return this
     }
-    for (element <- this.nonZeroes()) {
-      element.set(element.get() / x)
+    for (element <- this.nonZeroes) {
+      element.set(element.value / x)
     }
     this
   }

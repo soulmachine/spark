@@ -78,12 +78,12 @@ class RandomAccessSparseVectorSuite extends FunSuite {
   }
 
   test("squared lengh") {
-    assert(14.0 == RandomAccessSparseVector(3, (0, 1.0), (1, 2.0), (2, 3.0)).getLengthSquared)
+    assert(14.0 == RandomAccessSparseVector(3, (0, 1.0), (1, 2.0), (2, 3.0)).lengthSquared)
   }
 
   test("squared distance") {
     val v1 = RandomAccessSparseVector(3, (0, 1.0), (1, 2.0), (2, 3.0))
     val v2 = RandomAccessSparseVector(3, (0, 4.0), (1, 5.0), (2, 6.0))
-    assert(v1.getDistanceSquared(v2) == 27.0)
+    assert(v1.distanceSquared(v2) == 27.0)
   }
 }

@@ -39,8 +39,8 @@ class DenseVector private(private val values: DoubleMatrix) extends AbstractVect
    */
   def this(vector: Vector) = {
     this(vector.dimension)
-    for (e <- vector.nonZeroes()) {
-      values.put(e.index, e.get())
+    for (e <- vector.nonZeroes) {
+      values.put(e.index, e.value)
     }
   }
 
@@ -188,11 +188,11 @@ class DenseVector private(private val values: DoubleMatrix) extends AbstractVect
 
   override def sum: Double = this.values.sum()
 
-  override def getDistanceSquared(that: Vector): Double = {
+  override def distanceSquared(that: Vector): Double = {
     AbstractVector.checkDimension(this, that)
 
     if (!DenseVector.isBothDense(this, that)) {
-      return super.getDistanceSquared(that)
+      return super.distanceSquared(that)
     }
 
     val thatV = that.asInstanceOf[DenseVector]
@@ -205,23 +205,20 @@ class DenseVector private(private val values: DoubleMatrix) extends AbstractVect
     }
     // We can special case certain powers.
     if (power.isInfinite) values.normmax()
-    else if (power == 2.0) scala.math.sqrt(getLengthSquared)
+    else if (power == 2.0) scala.math.sqrt(lengthSquared)
     else if (power == 1.0) values.norm1()
     else if (power == 0.0) values.findIndices().length
     else pow(pow(values, power).sum(), 1.0 / power)
   }
 
   override def logNormalize(power: Double, norm: Double): Vector = {
-    // we can special case certain powers
-    if (power.isInfinite || power <= 1.0) {
-      throw new IllegalArgumentException("Power must be > 1 and < infinity")
-    } else {
-      val result = this.clone()
-      result.values.addi(1.0)
-      logi(result.values)
-      result.values.divi(log(power) * norm)
-      result
-    }
+    require(!power.isInfinite && power > 1.0, "Power must be > 1 and < infinity")
+
+    val result = this.clone()
+    result.values.addi(1.0)
+    logi(result.values)
+    result.values.divi(log(power) * norm)
+    result
   }
 
   protected override def dotSelf(): Double = values.dot(values)
@@ -236,8 +233,8 @@ class DenseVector private(private val values: DoubleMatrix) extends AbstractVect
   def addAll(v: Vector) {
     AbstractVector.checkDimension(this, v)
 
-    for (e <- v.nonZeroes()) {
-      values.put(e.index, e.get())
+    for (e <- v.nonZeroes) {
+      values.put(e.index, e.value)
     }
   }
 
@@ -305,7 +302,7 @@ class DenseVector private(private val values: DoubleMatrix) extends AbstractVect
 
   private final class DenseElement(private[DenseVector] var _index: Int = -1) extends Vector.Element {
 
-    override def get(): Double = values.get(index)
+    override def value: Double = values.get(index)
 
     override def index: Int = _index
 

@@ -26,9 +26,9 @@ import spark.mllib.math.vector.Vector
  * distance for comparison and don't care about the actual value as a distance.
  */
 class SquaredEuclideanDistanceMeasure extends DistanceMeasure {
-  override def distance(v1: Vector, v2: Vector): Double = v2.getDistanceSquared(v1)
+  override def distance(v1: Vector, v2: Vector): Double = v2.distanceSquared(v1)
 
   override def distance(centroidLengthSquare: Double, centroid: Vector, v: Vector): Double = {
-    centroidLengthSquare - 2 * (v * centroid) + v.getLengthSquared
+    centroidLengthSquare - 2 * (v * centroid) + v.lengthSquared
   }
 }

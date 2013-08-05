@@ -17,9 +17,6 @@
 
 package spark.mllib.math.vector
 
-import java.util.Iterator
-
-import spark.mllib.math.vector.Vector.Element
 import spark.mllib.math.function.DoubleDoubleFunction
 import spark.mllib.math.collection.set.OpenIntHashSet
 import spark.mllib.math.collection.map.OrderedIntDoubleMapping
@@ -147,8 +144,8 @@ object VectorBinaryAssign {
     }
 
     override def assign(x: Vector, y: Vector, f: DoubleDoubleFunction): Vector = {
-      for (xe <- x.nonZeroes()) {
-        xe.set(f(xe.get(), y(xe.index)))
+      for (xe <- x.nonZeroes) {
+        xe.set(f(xe.value, y(xe.index)))
       }
       x
     }
@@ -169,8 +166,8 @@ object VectorBinaryAssign {
     }
 
     override def assign(x: Vector, y: Vector, f: DoubleDoubleFunction):Vector = {
-      for (ye <- y.nonZeroes()) {
-        x(ye.index) = f(x(ye.index), ye.get())
+      for (ye <- y.nonZeroes) {
+        x(ye.index) = f(x(ye.index), ye.value)
       }
       x
     }
@@ -192,8 +189,8 @@ object VectorBinaryAssign {
 
     override def assign(x: Vector, y: Vector, f: DoubleDoubleFunction):Vector = {
       val updates = new OrderedIntDoubleMapping(false)
-      for (ye <- y.nonZeroes()) {
-        updates(ye.index) = f(x(ye.index), ye.get())
+      for (ye <- y.nonZeroes) {
+        updates(ye.index) = f(x(ye.index), ye.value)
       }
       x.mergeUpdates(updates)
       x
@@ -217,8 +214,8 @@ object VectorBinaryAssign {
     }
 
     override def assign(x: Vector, y: Vector, f: DoubleDoubleFunction):Vector = {
-      val xi = x.nonZeroes().iterator
-      val yi = y.nonZeroes().iterator
+      val xi = x.nonZeroes.iterator
+      val yi = y.nonZeroes.iterator
       var xe: Vector.Element = null
       var ye: Vector.Element = null
       var advanceThis = true
@@ -239,7 +236,7 @@ object VectorBinaryAssign {
           }
         }
         if (xe.index == ye.index) {
-          xe.set(f(xe.get(), ye.get()))
+          xe.set(f(xe.value, ye.value))
           advanceThis = true
           advanceThat = true
         } else {
@@ -273,8 +270,8 @@ object VectorBinaryAssign {
     }
 
     override def assign(x: Vector, y: Vector, f: DoubleDoubleFunction): Vector = {
-      val xi = x.nonZeroes().iterator
-      val yi = y.nonZeroes().iterator
+      val xi = x.nonZeroes.iterator
+      val yi = y.nonZeroes.iterator
       var xe: Vector.Element = null
       var ye: Vector.Element = null
       var advanceThis = true
@@ -297,26 +294,26 @@ object VectorBinaryAssign {
         }
         if (xe != null && ye != null) { // both vectors have nonzero elements
           if (xe.index == ye.index) {
-            xe.set(f(xe.get(), ye.get()))
+            xe.set(f(xe.value, ye.value))
             advanceThis = true
             advanceThat = true
           } else {
             if (xe.index < ye.index) { // f(x, 0)
-              xe.set(f(xe.get(), 0))
+              xe.set(f(xe.value, 0))
               advanceThis = true
               advanceThat = false
             } else {
-              updates(ye.index) = f(0, ye.get())
+              updates(ye.index) = f(0, ye.value)
               advanceThis = false
               advanceThat = true
             }
           }
         } else if (xe != null) { // just the first one still has nonzeros
-          xe.set(f(xe.get(), 0))
+          xe.set(f(xe.value, 0))
           advanceThis = true
           advanceThat = false
         } else if (ye != null) { // just the second one has nonzeros
-          updates(ye.index) = f(0, ye.get())
+          updates(ye.index) = f(0, ye.value)
           advanceThis = false
           advanceThat = true
         } else { // we're done, both are empty
@@ -346,8 +343,8 @@ object VectorBinaryAssign {
     }
 
     override def assign(x: Vector, y: Vector, f: DoubleDoubleFunction):Vector = {
-      val xi = x.nonZeroes().iterator
-      val yi = y.nonZeroes().iterator
+      val xi = x.nonZeroes.iterator
+      val yi = y.nonZeroes.iterator
       var xe: Vector.Element = null
       var ye: Vector.Element = null
       var advanceThis = true
@@ -369,26 +366,26 @@ object VectorBinaryAssign {
         }
         if (xe != null && ye != null) { // both vectors have nonzero elements
           if (xe.index == ye.index) {
-            xe.set(f(xe.get(), ye.get()))
+            xe.set(f(xe.value, ye.value))
             advanceThis = true
             advanceThat = true
           } else {
             if (xe.index < ye.index) { // f(x, 0)
-              xe.set(f(xe.get(), 0))
+              xe.set(f(xe.value, 0))
               advanceThis = true
               advanceThat = false
             } else {
-              x(ye.index) = f(0, ye.get())
+              x(ye.index) = f(0, ye.value)
               advanceThis = false
               advanceThat = true
             }
           }
         } else if (xe != null) { // just the first one still has nonzeros
-          xe.set(f(xe.get(), 0))
+          xe.set(f(xe.value, 0))
           advanceThis = true
           advanceThat = false
         } else if (ye != null) { // just the second one has nonzeros
-          x(ye.index) = f(0, ye.get())
+          x(ye.index) = f(0, ye.value)
           advanceThis = false
           advanceThat = true
         } else { // we're done, both are empty
@@ -418,14 +415,14 @@ object VectorBinaryAssign {
 
     override def assign(x: Vector, y: Vector, f: DoubleDoubleFunction):Vector = {
       val visited = new OpenIntHashSet()
-      for (xe <- x.nonZeroes()) {
-        xe.set(f(xe.get(), y(xe.index)))
+      for (xe <- x.nonZeroes) {
+        xe.set(f(xe.value, y(xe.index)))
         visited.add(xe.index)
       }
       val updates = new OrderedIntDoubleMapping(false)
-      for (ye <- y.nonZeroes()) {
+      for (ye <- y.nonZeroes) {
         if (!visited.contains(ye.index)) {
-          updates(ye.index) = f(x(ye.index), ye.get())
+          updates(ye.index) = f(x(ye.index), ye.value)
         }
       }
       x.mergeUpdates(updates)
@@ -451,13 +448,13 @@ object VectorBinaryAssign {
     }
     override def assign(x: Vector, y: Vector, f: DoubleDoubleFunction):Vector = {
       val visited = new OpenIntHashSet()
-      for (xe <- x.nonZeroes()) {
-        xe.set(f(xe.get(), y(xe.index)))
+      for (xe <- x.nonZeroes) {
+        xe.set(f(xe.value, y(xe.index)))
         visited.add(xe.index)
       }
-      for (ye <- y.nonZeroes()) {
+      for (ye <- y.nonZeroes) {
         if (!visited.contains(ye.index)) {
-          x(ye.index) = f(x(ye.index), ye.get())
+          x(ye.index) = f(x(ye.index), ye.value)
         }
       }
       x
@@ -475,12 +472,12 @@ object VectorBinaryAssign {
     }
 
     override def assign(x: Vector, y: Vector, f: DoubleDoubleFunction):Vector = {
-      val xi = x.all().iterator
-      val yi = y.all().iterator
+      val xi = x.all.iterator
+      val yi = y.all.iterator
       val updates = new OrderedIntDoubleMapping(false)
       while (xi.hasNext && yi.hasNext) {
         val xe = xi.next()
-        updates(xe.index) = f(xe.get(), yi.next.get())
+        updates(xe.index) = f(xe.value, yi.next.value)
       }
       x.mergeUpdates(updates)
       x
@@ -498,11 +495,11 @@ object VectorBinaryAssign {
     }
 
     override def assign(x: Vector, y: Vector, f: DoubleDoubleFunction):Vector = {
-      val xi = x.all().iterator
-      val yi = y.all().iterator
+      val xi = x.all.iterator
+      val yi = y.all.iterator
       while (xi.hasNext && yi.hasNext) {
         val xe = xi.next()
-        x(xe.index) = f(xe.get(), yi.next().get())
+        x(xe.index) = f(xe.value, yi.next().value)
       }
       x
     }
@@ -520,8 +517,8 @@ object VectorBinaryAssign {
 
     override def assign(x: Vector, y: Vector, f: DoubleDoubleFunction): Vector = {
       val updates = new OrderedIntDoubleMapping(false)
-      for (xe <- x.all()) {
-        updates(xe.index) = f(xe.get(), y(xe.index))
+      for (xe <- x.all) {
+        updates(xe.index) = f(xe.value, y(xe.index))
       }
       x.mergeUpdates(updates)
       x
@@ -539,8 +536,8 @@ object VectorBinaryAssign {
     }
 
     override def assign(x: Vector, y: Vector, f: DoubleDoubleFunction):Vector = {
-      for (xe <- x.all()) {
-        x(xe.index) = f(xe.get(), y(xe.index))
+      for (xe <- x.all) {
+        x(xe.index) = f(xe.value, y(xe.index))
       }
       x
     }
@@ -558,8 +555,8 @@ object VectorBinaryAssign {
 
     override def assign(x: Vector, y: Vector, f: DoubleDoubleFunction):Vector = {
       val updates = new OrderedIntDoubleMapping(false)
-      for (ye <- y.all()) {
-        updates(ye.index) = f(x(ye.index), ye.get())
+      for (ye <- y.all) {
+        updates(ye.index) = f(x(ye.index), ye.value)
       }
       x.mergeUpdates(updates)
       x
@@ -577,8 +574,8 @@ object VectorBinaryAssign {
     }
 
     override def assign(x: Vector, y: Vector, f: DoubleDoubleFunction): Vector = {
-      for (ye <- y.all()) {
-        x(ye.index) = f(x(ye.index), ye.get())
+      for (ye <- y.all) {
+        x(ye.index) = f(x(ye.index), ye.value)
       }
       x
     }

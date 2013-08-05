@@ -84,12 +84,12 @@ class DenseVectorSuite extends FunSuite {
   }
 
   test("squared lengh") {
-    assert(14.0 == DenseVector(1.0, 2.0, 3.0).getLengthSquared)
+    assert(14.0 == DenseVector(1.0, 2.0, 3.0).lengthSquared)
   }
 
   test("squared distance") {
     val v1 = DenseVector(1.0, 2.0, 3.0)
     val v2 = DenseVector(4.0, 5.0, 6.0)
-    assert(v1.getDistanceSquared(v2) == 27.0)
+    assert(v1.distanceSquared(v2) == 27.0)
   }
 }

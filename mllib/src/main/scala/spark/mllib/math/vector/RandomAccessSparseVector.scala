@@ -41,8 +41,8 @@ class RandomAccessSparseVector private(
 
   def this(other: Vector) = {
     this(other.dimension, other.getNumNondefaultElements)
-    for (e <- other.nonZeroes()) {
-      values(e.index) = e.get()
+    for (e <- other.nonZeroes) {
+      values(e.index) = e.value
     }
   }
 
@@ -69,8 +69,8 @@ class RandomAccessSparseVector private(
 
   def toArray: Array[Double] = {
     val result = new Array[Double](dimension)
-    for (e <- nonZeroes()) {
-      result(e.index) = e.get()
+    for (e <- nonZeroes) {
+      result(e.index) = e.value
     }
     result
   }
@@ -85,8 +85,8 @@ class RandomAccessSparseVector private(
       throw new DimensionException(dimension, other.dimension)
     }
     values.clear()
-    for (e <- other.nonZeroes()) {
-      this(e.index) = e.get()
+    for (e <- other.nonZeroes) {
+      this(e.index) = e.value
     }
     this
   }
@@ -159,7 +159,7 @@ class RandomAccessSparseVector private(
 
     private final class NonDefaultElement extends Vector.Element {
 
-      override def get(): Double = mapElement.get()
+      override def value: Double = mapElement.get()
 
       override def index = mapElement.index
 
@@ -206,7 +206,7 @@ class RandomAccessSparseVector private(
 
   private final class RandomAccessElement(var index: Int = -1) extends Vector.Element {
 
-    override def get(): Double = values(index)
+    override def value: Double = values(index)
 
     override def set(value: Double) {
       invalidateCachedLength()

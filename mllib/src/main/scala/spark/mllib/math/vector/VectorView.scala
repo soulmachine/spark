@@ -74,12 +74,12 @@ class VectorView(private val vector: Vector, private val offset: Int, dimension:
 
   final class NonZeroIterator extends AbstractIterator[Vector.Element] {
 
-    private val iter = vector.nonZeroes().iterator
+    private val iter = vector.nonZeroes.iterator
 
     protected override def computeNext(): Vector.Element = {
       while (iter.hasNext) {
         val e = iter.next()
-        if (isInView(e.index) && e.get() != 0) {
+        if (isInView(e.index) && e.value != 0) {
           val decorated = vector.getElement(e.index)
           return new DecoratorElement(decorated)
         }
@@ -91,7 +91,7 @@ class VectorView(private val vector: Vector, private val offset: Int, dimension:
 
   final class AllIterator extends AbstractIterator[Vector.Element] {
 
-    private val iter = vector.all().iterator
+    private val iter = vector.all.iterator
 
     protected override def computeNext(): Vector.Element = {
       while (iter.hasNext) {
@@ -108,7 +108,7 @@ class VectorView(private val vector: Vector, private val offset: Int, dimension:
 
   private final class DecoratorElement(private val decorated: Vector.Element) extends Vector.Element {
 
-    override def get(): Double = decorated.get()
+    override def value: Double = decorated.value
 
     override def index: Int = decorated.index - offset
 
@@ -117,7 +117,7 @@ class VectorView(private val vector: Vector, private val offset: Int, dimension:
     }
   }
 
-  override def getLengthSquared: Double = {
+  override def lengthSquared: Double = {
     var result = 0.0
     for (i <- 0 until dimension) {
       val value = this(i)
@@ -126,7 +126,7 @@ class VectorView(private val vector: Vector, private val offset: Int, dimension:
     result
   }
 
-  override def getDistanceSquared(other: Vector): Double = {
+  override def distanceSquared(other: Vector): Double = {
     var result = 0.0
     for (i <- 0 until dimension) {
       val delta = this(i) - other(i)

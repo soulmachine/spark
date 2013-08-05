@@ -20,11 +20,9 @@ package spark.mllib.math.vector
 import spark.mllib.math.function.DoubleDoubleFunction
 import spark.mllib.math.collection.set.OpenIntHashSet
 
-import java.util.Iterator
-
 /**
  * Abstract class encapsulating different algorithms that perform the Vector operations aggregate().
- * x.aggregte(y, fa, fc), for x and y Vectors and fa, fc DoubleDouble functions:
+ * x.aggregate(y, fa, fc), for x and y Vectors and fa, fc DoubleDouble functions:
  * - applies the function fc to every element in x and y, fc(xi, yi)
  * - constructs a result iteratively, r0 = fc(x0, y0), ri = fc(r_{i-1}, fc(xi, yi)).
  * This works essentially like a map/reduce functional combo.
@@ -133,15 +131,15 @@ object VectorBinaryAggregate {
 
     override def aggregate(x: Vector, y: Vector, fa: DoubleDoubleFunction,
         fc: DoubleDoubleFunction): Double = {
-      val xi = x.nonZeroes().iterator
+      val xi = x.nonZeroes.iterator
       if (!xi.hasNext) {
         return 0
       }
       var xe = xi.next()
-      var result = fc(xe.get(), y(xe.index))
+      var result = fc(xe.value, y(xe.index))
       while (xi.hasNext) {
         xe = xi.next()
-        result = fa(result, fc(xe.get(), y(xe.index)))
+        result = fa(result, fc(xe.value, y(xe.index)))
       }
       result
     }
@@ -162,15 +160,15 @@ object VectorBinaryAggregate {
 
     override def aggregate(x: Vector, y: Vector, fa: DoubleDoubleFunction,
         fc: DoubleDoubleFunction): Double = {
-      val yi = y.nonZeroes().iterator
+      val yi = y.nonZeroes.iterator
       if (!yi.hasNext) {
         return 0
       }
       var ye = yi.next()
-      var result = fc(x(ye.index), ye.get())
+      var result = fc(x(ye.index), ye.value)
       while (yi.hasNext) {
         ye = yi.next()
-        result = fa(result, fc(x(ye.index), ye.get()))
+        result = fa(result, fc(x(ye.index), ye.value))
       }
       result
     }
@@ -191,8 +189,8 @@ object VectorBinaryAggregate {
 
     override def aggregate(x: Vector, y: Vector, fa: DoubleDoubleFunction,
         fc: DoubleDoubleFunction): Double = {
-      val xi = x.nonZeroes().iterator
-      val yi = y.nonZeroes().iterator
+      val xi = x.nonZeroes.iterator
+      val yi = y.nonZeroes.iterator
       var xe: Vector.Element = null
       var ye: Vector.Element = null
       var advanceThis = true
@@ -215,7 +213,7 @@ object VectorBinaryAggregate {
           }
         }
         if (xe.index == ye.index) {
-          val thisResult = fc(xe.get(), ye.get())
+          val thisResult = fc(xe.value, ye.value)
           if (validResult) {
             result = fa(result, thisResult)
           } else {
@@ -253,8 +251,8 @@ object VectorBinaryAggregate {
 
     override def aggregate(x: Vector, y: Vector, fa: DoubleDoubleFunction,
         fc: DoubleDoubleFunction): Double = {
-      val xi = x.nonZeroes().iterator
-      val yi = y.nonZeroes().iterator
+      val xi = x.nonZeroes.iterator
+      val yi = y.nonZeroes.iterator
       var xe: Vector.Element = null
       var ye: Vector.Element = null
       var advanceThis = true
@@ -279,33 +277,33 @@ object VectorBinaryAggregate {
         var thisResult = 0.0
         if (xe != null && ye != null) { // both vectors have nonzero elements
           if (xe.index == ye.index) {
-            thisResult = fc(xe.get(), ye.get());
+            thisResult = fc(xe.value, ye.value)
             advanceThis = true
             advanceThat = true
           } else {
             if (xe.index < ye.index) { // f(x, 0)
-              thisResult = fc(xe.get(), 0)
+              thisResult = fc(xe.value, 0)
               advanceThis = true
               advanceThat = false
             } else {
-              thisResult = fc(0, ye.get())
+              thisResult = fc(0, ye.value)
               advanceThis = false
               advanceThat = true
             }
           }
         } else if (xe != null) { // just the first one still has nonzeros
-          thisResult = fc(xe.get(), 0)
+          thisResult = fc(xe.value, 0)
           advanceThis = true
           advanceThat = false
         } else if (ye != null) { // just the second one has nonzeros
-          thisResult = fc(0, ye.get())
+          thisResult = fc(0, ye.value)
           advanceThis = false
           advanceThat = true
         } else { // we're done, both are empty
           return result
         }
         if (validResult) {
-          result = fa(result, thisResult);
+          result = fa(result, thisResult)
         } else {
           result = thisResult
           validResult =  true
@@ -332,13 +330,13 @@ object VectorBinaryAggregate {
     override def aggregate(x: Vector, y: Vector, fa: DoubleDoubleFunction,
         fc: DoubleDoubleFunction): Double = {
       val visited = new OpenIntHashSet()
-      val xi = x.nonZeroes().iterator
+      val xi = x.nonZeroes.iterator
       var validResult = false
       var result = 0.0
       var thisResult = 0.0
       while (xi.hasNext) {
-        var xe = xi.next()
-        thisResult = fc(xe.get(), y(xe.index))
+        val xe = xi.next()
+        thisResult = fc(xe.value, y(xe.index))
         if (validResult) {
           result = fa(result, thisResult)
         } else {
@@ -347,11 +345,11 @@ object VectorBinaryAggregate {
         }
         visited.add(xe.index)
       }
-      val yi = y.nonZeroes().iterator
+      val yi = y.nonZeroes.iterator
       while (yi.hasNext) {
-        var ye = yi.next()
+        val ye = yi.next()
         if (!visited.contains(ye.index)) {
-          thisResult = fc(x(ye.index), ye.get())
+          thisResult = fc(x(ye.index), ye.value)
           if (validResult) {
             result = fa(result, thisResult)
           } else {
@@ -378,13 +376,13 @@ object VectorBinaryAggregate {
 
     override def aggregate(x: Vector, y: Vector, fa: DoubleDoubleFunction,
         fc: DoubleDoubleFunction): Double = {
-      val xi = x.all().iterator
-      val yi = y.all().iterator
+      val xi = x.all.iterator
+      val yi = y.all.iterator
       var validResult = false
       var result = 0.0
       while (xi.hasNext && yi.hasNext) {
         val xe = xi.next()
-        val thisResult = fc(xe.get(), yi.next().get())
+        val thisResult = fc(xe.value, yi.next().value)
         if (validResult) {
           result = fa(result, thisResult)
         } else {
@@ -410,12 +408,12 @@ object VectorBinaryAggregate {
 
     override def aggregate(x: Vector, y: Vector, fa: DoubleDoubleFunction,
         fc: DoubleDoubleFunction): Double = {
-      val xi = x.all().iterator
+      val xi = x.all.iterator
       var validResult = false
       var result = 0.0
       while (xi.hasNext) {
-        val xe = xi.next();
-        val thisResult = fc(xe.get(), y(xe.index))
+        val xe = xi.next()
+        val thisResult = fc(xe.value, y(xe.index))
         if (validResult) {
           result = fa(result, thisResult)
         } else {
@@ -441,12 +439,12 @@ object VectorBinaryAggregate {
 
     override def aggregate(x: Vector, y: Vector, fa: DoubleDoubleFunction,
         fc: DoubleDoubleFunction): Double = {
-      val yi = y.all().iterator
+      val yi = y.all.iterator
       var validResult = false
       var result = 0.0
       while (yi.hasNext) {
         val ye = yi.next()
-        val thisResult = fc(x(ye.index), ye.get())
+        val thisResult = fc(x(ye.index), ye.value)
         if (validResult) {
           result = fa(result, thisResult)
         } else {
@@ -461,14 +459,11 @@ object VectorBinaryAggregate {
   class AggregateAllLoop extends VectorBinaryAggregate {
 
     override def isValid(x: Vector, y: Vector, fa: DoubleDoubleFunction,
-        fc: DoubleDoubleFunction): Boolean = {
-      return true;
-    }
+        fc: DoubleDoubleFunction): Boolean =  true
 
     override def estimateCost(x: Vector, y: Vector, fa: DoubleDoubleFunction,
-        fc: DoubleDoubleFunction): Double = {
-      return x.dimension * x.getLookupCost * y.getLookupCost
-    }
+        fc: DoubleDoubleFunction): Double =
+      x.dimension * x.getLookupCost * y.getLookupCost
 
     override def aggregate(x: Vector, y: Vector, fa: DoubleDoubleFunction,
         fc: DoubleDoubleFunction): Double = {

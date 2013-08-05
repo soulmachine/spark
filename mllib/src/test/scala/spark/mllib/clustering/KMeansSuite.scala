@@ -55,7 +55,7 @@ class KMeansSuite extends FunSuite with BeforeAndAfterAll {
   def assertEqual(v1: Vector, v2: Vector) {
     def errorMessage = prettyPrint(v1) + " did not equal " + prettyPrint(v2)
     assert(v1.dimension == v2.dimension, errorMessage)
-    assert(v1.getDistanceSquared(v2) <= EPSILON, errorMessage)
+    assert(v1.distanceSquared(v2) <= EPSILON, errorMessage)
   }
 
   // Assert that two sets of points are equal, within EPSILON tolerance

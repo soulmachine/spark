@@ -26,10 +26,8 @@ import spark.mllib.math.collection.map.OrderedIntDoubleMapping
  * NOTE: All implementing classes must have a
  * constructor that takes an int as dimension and a no-arg constructor that can be used for marshalling the Writable
  * instance <p/> NOTE: Implementations may choose to reuse the Vector.Element in the Iterable methods
- *
  */
-abstract class Vector extends Serializable with Equals with Cloneable {
-
+trait Vector extends Serializable with Equals with Cloneable {
   /** Return the dimension of the vector. */
   def dimension: Int
 
@@ -72,14 +70,14 @@ abstract class Vector extends Serializable with Equals with Cloneable {
 
   /**
    * @return true iff this implementation should be considered dense -- that it explicitly
-   *  represents every value
+   *         represents every value
    */
   def isDense: Boolean
 
   /**
    * @return true iff this implementation should be considered to be iterable in index order in an efficient way.
-   *  In particular this implies that `#all()` and `#nonZeroes()` return elements
-   *  in ascending order by index.
+   *         In particular this implies that `#all()` and `#nonZeroes()` return elements
+   *         in ascending order by index.
    */
   def isSequentialAccess: Boolean
 
@@ -149,9 +147,9 @@ abstract class Vector extends Serializable with Equals with Cloneable {
    */
   def assign(f: DoubleDoubleFunction, y: Double): Vector
 
-  def all(): Iterable[Vector.Element]
+  def all: Iterable[Vector.Element]
 
-  def nonZeroes(): Iterable[Vector.Element]
+  def nonZeroes: Iterable[Vector.Element]
 
   /**
    * Return an object of Vector.Element representing an element of this Vector. Useful when designing new iterator
@@ -169,29 +167,37 @@ abstract class Vector extends Serializable with Equals with Cloneable {
   def mergeUpdates(updates: OrderedIntDoubleMapping): Unit
 
   /** Return a new vector containing the element by element sum of the recipient and the argument. */
-  def + (that: Vector): Vector
+  def +(that: Vector): Vector
+
   /** Return a new vector containing the sum of each element of the recipient and the argument. */
-  def + (x: Double): Vector
+  def +(x: Double): Vector
+
   /** Return the original vector containing the element by element sum of the recipient and the argument. */
-  def += (that: Vector): Vector
+  def +=(that: Vector): Vector
+
   /** Return the original vector containing the sum of each element of the recipient and the argument. */
-  def += (x: Double): Vector
+  def +=(x: Double): Vector
 
   /** Return a new vector containing the element by element difference of the recipient and the argument. */
-  def - (that: Vector): Vector
+  def -(that: Vector): Vector
+
   /** Return a new vector containing the element of the recipient each subtracted by the argument. */
-  def - (x: Double): Vector
+  def -(x: Double): Vector
+
   /** Return the original vector containing the element by element difference of the recipient and the argument. */
-  def -= (that: Vector): Vector
+  def -=(that: Vector): Vector
+
   /** Return the original vector containing the element of the recipient each subtracted by the argument. */
-  def -= (x: Double): Vector
+  def -=(x: Double): Vector
 
   /** Return the dot product of the recipient and the argument. */
-  def * (that: Vector): Double
+  def *(that: Vector): Double
+
   /** Return a new vector containing the elements of the recipient multiplied by the argument. */
-  def * (x: Double): Vector
+  def *(x: Double): Vector
+
   /** Return the original containing the elements of the recipient multiplied by the argument. */
-  def *= (x: Double): Vector
+  def *=(x: Double): Vector
 
   /**
    * Return a new vector containing the element-wise product of the recipient and the argument
@@ -203,27 +209,32 @@ abstract class Vector extends Serializable with Equals with Cloneable {
   def times(that: Vector): Vector
 
   /** Return a new vector containing the elements of the recipient divided by the argument. */
-  def / (x: Double): Vector
+  def /(x: Double): Vector
+
   /** Return the original vector containing the elements of the recipient divided by the argument. */
-  def /= (x: Double): Vector
-  /**  Elementwise divide. */
-  def / (that: Vector): Vector
-  /**  Elementwise divide(in place). */
-  def /= (that: Vector): Vector
+  def /=(x: Double): Vector
+
+  /** Elementwise divide. */
+  def /(that: Vector): Vector
+
+  /** Elementwise divide(in place). */
+  def /=(that: Vector): Vector
 
   /** Return the sum of all the elements of the vector. */
   def sum: Double
 
-  /** Return the sum of squares of all elements in the vector. Square root of this value is the length of the vector. */
-  def getLengthSquared: Double
-  /** Get the square of the distance between this vector and the other vector. */
-  def getDistanceSquared(that: Vector): Double
-
   /**
-   * Return a new vector containing the normalized (L_2 norm) values of the recipient
-   *
-   * @return a new Vector
+   * Return the sum of squares of all elements in the vector. Square root of this value is the length of the vector.
    */
+  def lengthSquared: Double
+
+  /** Get the square of the distance between this vector and the other vector. */
+  def distanceSquared(that: Vector): Double
+
+  /** Return a new vector containing the normalized (L_2 norm) values of the recipient
+    *
+    * @return a new Vector
+    */
   def normalize(): Vector
 
   /**
@@ -306,7 +317,7 @@ abstract class Vector extends Serializable with Equals with Cloneable {
 
   /**
    * Examples speak louder than words:  aggregate(plus, pow(2)) is another way to say
-   * getLengthSquared(), aggregate(max, abs) is norm(Double.POSITIVE_INFINITY).  To sum all of the positive values,
+   * lengthSquared(), aggregate(max, abs) is norm(Double.POSITIVE_INFINITY).  To sum all of the positive values,
    * aggregate(plus, max(0)).
    * @param aggregator used to combine the current value of the aggregation with the result of map.apply(nextValue)
    * @param map a function to apply to each element of the vector in turn before passing to the aggregator
@@ -325,7 +336,7 @@ abstract class Vector extends Serializable with Equals with Cloneable {
    * @param aggregator function we're aggregating with; fa
    * @param combiner function we're combining with; fc
    * @return the final aggregation; if r0 = fc(this[0], other[0]), ri = fa(r_{i-1}, fc(this[i], other[i]))
-   * for all i > 0
+   *         for all i > 0
    */
   def aggregate(that: Vector, aggregator: DoubleDoubleFunction, combiner: DoubleDoubleFunction): Double
 
@@ -347,11 +358,13 @@ abstract class Vector extends Serializable with Equals with Cloneable {
 
   /** Return the extended Vector with intercept, (1.0, Vector). */
   def extend(intercept: Double = 1.0): Vector
+
   /** Return the original Vector. */
   def restore(): (Double, Vector)
 }
 
 object Vector {
+
   /**
    * A holder for information about a specific item in the Vector. <p/> When using with an Iterator, the implementation
    * may choose to reuse this element, so you may need to make a copy if you want to keep it
@@ -359,7 +372,7 @@ object Vector {
   abstract class Element {
 
     /** @return the value of this vector element. */
-    def get(): Double
+    def value: Double
 
     /** @return the index of this vector element. */
     def index: Int
@@ -367,4 +380,5 @@ object Vector {
     /** @param value Set the current element to value. */
     def set(value: Double): Unit
   }
+
 }
